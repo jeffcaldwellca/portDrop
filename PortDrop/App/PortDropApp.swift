@@ -11,7 +11,7 @@ struct PortDropApp: App {
                 let m = PortMonitor(autoStart: false)
                 await m.refresh()
                 let host = NSHostingView(rootView: PanelView(monitor: m))
-                host.frame = NSRect(x: 0, y: 0, width: 420, height: host.fittingSize.height)
+                host.frame = NSRect(origin: .zero, size: host.fittingSize)
                 let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
                 window.contentView = host
                 window.appearance = NSAppearance(named: .aqua)
@@ -34,7 +34,18 @@ struct PortDropApp: App {
         MenuBarExtra {
             PanelView(monitor: monitor)
         } label: {
-            Image(nsImage: StatusBarLabel.image(count: monitor.ports.count))
+            let count = monitor.ports.count
+            if let image = StatusBarLabel.image(count: count) {
+                Image(nsImage: image)
+                    .accessibilityLabel(StatusBarLabel.accessibilityLabel(count: count))
+            } else {
+                // Fallback keeps the count visible even if offscreen rendering is unavailable.
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Image(systemName: "network")
+                    Text("\(count)").monospacedDigit()
+                }
+                .accessibilityLabel(StatusBarLabel.accessibilityLabel(count: count))
+            }
         }
         .menuBarExtraStyle(.window)
     }

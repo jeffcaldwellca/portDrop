@@ -85,9 +85,9 @@ func kill(_ port: ListeningPort, force: Bool) async throws
 - Exposes `count` for the menu bar label.
 
 ### UI
-- `MenuBarExtra { PanelView } label: { Image(systemName:"network") + Text(count) }` with `.menuBarExtraStyle(.window)`.
-- `PanelView`: width 380, max height 560, `.glassEffect(.regular, in: .rect(cornerRadius: 20))` container; header (title, search `TextField`, refresh & gear `Menu`); `ScrollView` of `PortRowView`; empty-state; error banner.
-- `PortRowView`: icon 28 pt, name (headline) + "PID · user · bind" (caption, secondary), kind chip (capsule, tinted per kind), port in `.monospacedDigit().bold()`, Open button (`arrow.up.right.square`) when URL, Kill button (`xmark.octagon.fill`); kill state machine `idle → confirming(3 s timer) → killing → done`. Row removal animated with `.transition(.opacity.combined(with: .move(edge:.leading)))`.
+- `MenuBarExtra { PanelView } label: { single template image of network glyph + count, cached per count, with accessibility label }` with `.menuBarExtraStyle(.window)`.
+- `PanelView`: width 420, max height 560, `.glassEffect(.regular, in: .rect(cornerRadius: 20))` container; header (title, search `TextField`, refresh & gear `Menu`); `ScrollView` of `PortRowView`; empty-state; error banner.
+- `PortRowView`: icon 28 pt, name (headline) + kind chip + "user · PID" (caption, secondary; bind address in the tooltip), kind chip (capsule, tinted per kind), port in `.monospacedDigit().bold()`, Open button (`arrow.up.right.square`) when URL, Kill button (`xmark.octagon.fill`); kill state machine `idle → confirming(3 s timer) → killing → done`. Row removal animated with `.transition(.opacity.combined(with: .move(edge:.leading)))`.
 - Context menu: Open, Copy URL, Copy PID, Copy host:port, Reveal in Finder (if bundle path), Force Kill.
 - Settings `Menu`: Launch at Login toggle, New-port notifications toggle, Quit.
 

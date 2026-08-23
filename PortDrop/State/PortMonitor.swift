@@ -70,8 +70,8 @@ final class PortMonitor {
             let scanned = try await PortScanner.scan()
             let classified = await classify(scanned)
             let fresh = Self.newIDs(old: ports, new: scanned)
-            ports = scanned
-            services = classified
+            if ports != scanned { ports = scanned }          // avoid redraws (and label re-renders) when nothing changed
+            if services != classified { services = classified }
             lastError = nil
             resolver.evict(pidsNotIn: Set(scanned.map(\.pid)))
             if hasScannedOnce && notifyOnNewPorts {

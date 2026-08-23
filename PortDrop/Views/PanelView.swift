@@ -3,6 +3,10 @@ import SwiftUI
 struct PanelView: View {
     @Bindable var monitor: PortMonitor
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @State private var listContentHeight: CGFloat = 0
+
+    static let width: CGFloat = 420
+    static let maxListHeight: CGFloat = 480
 
     var body: some View {
         VStack(spacing: 0) {
@@ -10,7 +14,7 @@ struct PanelView: View {
             Divider().opacity(0.4)
             content
         }
-        .frame(width: 420)
+        .frame(width: Self.width)
         .onAppear {
             monitor.isPanelVisible = true
             NSApp.activate()   // MenuBarExtra windows don't become key otherwise, so TextField edits never commit
@@ -62,26 +66,16 @@ struct PanelView: View {
     }
 
     private func showAbout() {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
-        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
         let credits = NSAttributedString(
             string: "Shows every process listening on a local TCP port, opens the service, and kills it on demand.",
             attributes: [.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor])
         NSApp.activate()
-        NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "PortDrop",
-            .applicationVersion: version,
-            .version: build,
-            .credits: credits,
-        ])
-    }
-
-    private static let rowHeight: CGFloat = 56
-    private static let maxListHeight: CGFloat = 480
-
-    /// MenuBarExtra windows size to their content's ideal height; a ScrollView has none, so derive it from the row count.
-    private var listHeight: CGFloat {
-        min(CGFloat(monitor.filteredPorts.count) * Self.rowHeight + 12, Self.maxListHeight)
+        // Name and version come from Info.plist; only the credits are overridden.
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+        // An LSUIElement app has no Dock tile or Window menu to recover a buried window, so keep About on top.
+        for window in NSApp.windows where window.isVisible && window.styleMask.contains(.titled) {
+            window.level = .floating
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -114,8 +108,9 @@ struct PanelView: View {
                 }
                 .padding(6)
                 .animation(.snappy, value: monitor.filteredPorts)
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { listContentHeight = $0 }
             }
-            .frame(height: listHeight)
+            .frame(height: min(max(listContentHeight, PortRowView.minRowHeight), Self.maxListHeight))
         }
     }
 }

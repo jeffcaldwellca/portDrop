@@ -7,6 +7,13 @@ struct PortRowView: View {
     let presentation: ProcessPresentation
     let onKill: (_ force: Bool) async throws -> Void
 
+    /// Wide enough for "65535" in bold monospaced body text.
+    static let portColumnWidth: CGFloat = 52
+    /// Wide enough for the idle icon; the Confirm pill may grow past this rather than clip.
+    static let killColumnWidth: CGFloat = 28
+    /// Lower bound for the list frame before the first geometry pass reports.
+    static let minRowHeight: CGFloat = 56
+
     private enum KillState: Equatable {
         case idle, confirming, killing, failed(String)
     }
@@ -45,24 +52,23 @@ struct PortRowView: View {
                 .font(.system(.body, design: .monospaced).weight(.bold))
                 .monospacedDigit()
                 .foregroundStyle(.primary)
-                .frame(minWidth: 44, alignment: .trailing)
+                .fixedSize()
+                .frame(minWidth: Self.portColumnWidth, alignment: .trailing)
 
             HStack(spacing: 6) {
-                Group {
-                if let url = service.url {
-                    Button { NSWorkspace.shared.open(url) } label: {
-                        Image(systemName: "arrow.up.right.square")
-                    }
-                    .buttonStyle(.accessoryBar)
-                    .accessibilityLabel("Open")
-                    .help("Open \(url.absoluteString)")
-                } else {
-                    Color.clear
+                // Always laid out so the kill column lines up; invisible + inert when there is no URL.
+                Button { if let url = service.url { NSWorkspace.shared.open(url) } } label: {
+                    Image(systemName: "arrow.up.right.square")
                 }
-                }
-                .frame(width: 28, height: 24)
+                .buttonStyle(.accessoryBar)
+                .accessibilityLabel("Open")
+                .help(service.url.map { "Open \($0.absoluteString)" } ?? "")
+                .opacity(service.url == nil ? 0 : 1)
+                .disabled(service.url == nil)
+                .accessibilityHidden(service.url == nil)
+
                 killButton
-                    .frame(width: 60, height: 24, alignment: .trailing)
+                    .frame(minWidth: Self.killColumnWidth, alignment: .trailing)
             }
         }
         .padding(.vertical, 8)
@@ -102,7 +108,7 @@ struct PortRowView: View {
             .tint(.red)
             .accessibilityLabel("Confirm kill")
         case .killing:
-            ProgressView().controlSize(.small).frame(width: 28)
+            ProgressView().controlSize(.small)
         }
     }
 
