@@ -1,0 +1,37 @@
+# PortDrop
+
+A macOS 26 menu-bar utility that shows every process listening on a local TCP port — with the real app icon, a protocol chip, a one-click link to the service (`http://`, `ftp://`, `ssh://`, `postgresql://`, …) — and a two-step **Kill** button that escalates to the standard macOS admin dialog when the process isn't yours.
+
+## Features
+- Live list of listening TCP ports (polls `lsof` every 2 s while open, 10 s in the background).
+- App icons via `NSRunningApplication` / bundle lookup; SF Symbol fallbacks for daemons.
+- Service detection by port + process name, plus an HTTP probe for unknown ports.
+- **Open** launches the service URL in its default handler.
+- **Kill**: click → red *Confirm* (auto-reverts after 3 s) → SIGTERM. Hold ⌥ for SIGKILL. Root/other-user processes prompt for an administrator password.
+- Search by port, process, user, or protocol. Right-click for Copy URL / PID / host:port, Reveal in Finder, Force Kill.
+- Menu-bar badge with the listening-port count; optional notification when a new port appears.
+- Launch at Login (`SMAppService`).
+
+## Build
+Requires Xcode 26 and [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`).
+
+```sh
+xcodegen generate
+open PortDrop.xcodeproj         # or:
+xcodebuild -scheme PortDrop -destination 'platform=macOS' test
+```
+
+The app is intentionally **not sandboxed** — `lsof` and `kill` need direct process access.
+
+## Release (Developer ID + notarization)
+One-time: store an App Store Connect credential for `notarytool`:
+```sh
+xcrun notarytool store-credentials PortDrop --apple-id <apple-id> --team-id 88ZPCYS252
+```
+Then:
+```sh
+Scripts/release.sh     # → dist/PortDrop.zip (signed, notarized, stapled)
+```
+
+## Debug snapshot
+`PORTDROP_SNAPSHOT=/tmp/panel.png PortDrop.app/Contents/MacOS/PortDrop` renders the panel to a PNG and exits.
