@@ -10,7 +10,7 @@ struct PanelView: View {
             Divider().opacity(0.4)
             content
         }
-        .frame(width: 380)
+        .frame(width: 420)
         .onAppear {
             monitor.isPanelVisible = true
             NSApp.activate()   // MenuBarExtra windows don't become key otherwise, so TextField edits never commit
@@ -21,7 +21,7 @@ struct PanelView: View {
     private var header: some View {
         VStack(spacing: 10) {
             HStack {
-                Label("Ports", systemImage: "network")
+                Text("Ports")
                     .font(.title3.weight(.bold))
                 Spacer()
                 Text("\(monitor.ports.count)")
@@ -42,6 +42,7 @@ struct PanelView: View {
                     Toggle("Notify on new ports", isOn: Binding(
                         get: { monitor.notifyOnNewPorts }, set: { monitor.notifyOnNewPorts = $0 }))
                     Divider()
+                    Button("About PortDrop") { showAbout() }
                     Button("Quit PortDrop") { NSApplication.shared.terminate(nil) }
                         .keyboardShortcut("q")
                 } label: {
@@ -58,6 +59,21 @@ struct PanelView: View {
         .padding(.horizontal, 14)
         .padding(.top, 14)
         .padding(.bottom, 10)
+    }
+
+    private func showAbout() {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1"
+        let credits = NSAttributedString(
+            string: "Shows every process listening on a local TCP port, opens the service, and kills it on demand.",
+            attributes: [.font: NSFont.systemFont(ofSize: NSFont.smallSystemFontSize), .foregroundColor: NSColor.secondaryLabelColor])
+        NSApp.activate()
+        NSApp.orderFrontStandardAboutPanel(options: [
+            .applicationName: "PortDrop",
+            .applicationVersion: version,
+            .version: build,
+            .credits: credits,
+        ])
     }
 
     private static let rowHeight: CGFloat = 56

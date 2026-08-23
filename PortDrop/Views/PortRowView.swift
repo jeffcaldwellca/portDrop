@@ -16,7 +16,7 @@ struct PortRowView: View {
     @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Image(nsImage: presentation.icon)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -39,16 +39,16 @@ struct PortRowView: View {
                     Text(msg).font(.caption2).foregroundStyle(.red).lineLimit(1)
                 }
             }
-
-            Spacer(minLength: 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(String(port.port))
                 .font(.system(.body, design: .monospaced).weight(.bold))
                 .monospacedDigit()
                 .foregroundStyle(.primary)
-                .fixedSize()
+                .frame(minWidth: 44, alignment: .trailing)
 
             HStack(spacing: 6) {
+                Group {
                 if let url = service.url {
                     Button { NSWorkspace.shared.open(url) } label: {
                         Image(systemName: "arrow.up.right.square")
@@ -56,8 +56,13 @@ struct PortRowView: View {
                     .buttonStyle(.accessoryBar)
                     .accessibilityLabel("Open")
                     .help("Open \(url.absoluteString)")
+                } else {
+                    Color.clear
                 }
+                }
+                .frame(width: 28, height: 24)
                 killButton
+                    .frame(width: 60, height: 24, alignment: .trailing)
             }
         }
         .padding(.vertical, 8)
@@ -70,7 +75,7 @@ struct PortRowView: View {
     }
 
     private var subtitle: String {
-        "PID \(port.pid) · \(port.user)"
+        "\(port.user) · PID \(port.pid)"
     }
 
     private var bindDescription: String {

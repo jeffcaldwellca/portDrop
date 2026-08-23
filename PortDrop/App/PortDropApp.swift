@@ -11,7 +11,7 @@ struct PortDropApp: App {
                 let m = PortMonitor(autoStart: false)
                 await m.refresh()
                 let host = NSHostingView(rootView: PanelView(monitor: m))
-                host.frame = NSRect(x: 0, y: 0, width: 380, height: host.fittingSize.height)
+                host.frame = NSRect(x: 0, y: 0, width: 420, height: host.fittingSize.height)
                 let window = NSWindow(contentRect: host.frame, styleMask: [.borderless], backing: .buffered, defer: false)
                 window.contentView = host
                 window.appearance = NSAppearance(named: .aqua)
@@ -34,12 +34,7 @@ struct PortDropApp: App {
         MenuBarExtra {
             PanelView(monitor: monitor)
         } label: {
-            HStack(spacing: 3) {
-                Image(systemName: "network")
-                Text("\(monitor.ports.count)")
-                    .font(.system(.caption, design: .rounded).weight(.semibold))
-                    .monospacedDigit()
-            }
+            Image(nsImage: StatusBarLabel.image(count: monitor.ports.count))
         }
         .menuBarExtraStyle(.window)
     }
