@@ -11,7 +11,10 @@ struct PanelView: View {
             content
         }
         .frame(width: 380)
-        .onAppear { monitor.isPanelVisible = true }
+        .onAppear {
+            monitor.isPanelVisible = true
+            NSApp.activate()   // MenuBarExtra windows don't become key otherwise, so TextField edits never commit
+        }
         .onDisappear { monitor.isPanelVisible = false }
     }
 
@@ -57,6 +60,14 @@ struct PanelView: View {
         .padding(.bottom, 10)
     }
 
+    private static let rowHeight: CGFloat = 56
+    private static let maxListHeight: CGFloat = 480
+
+    /// MenuBarExtra windows size to their content's ideal height; a ScrollView has none, so derive it from the row count.
+    private var listHeight: CGFloat {
+        min(CGFloat(monitor.filteredPorts.count) * Self.rowHeight + 12, Self.maxListHeight)
+    }
+
     @ViewBuilder private var content: some View {
         if let err = monitor.lastError {
             Label(err, systemImage: "exclamationmark.triangle.fill")
@@ -73,7 +84,7 @@ struct PanelView: View {
             .frame(height: 200)
         } else {
             ScrollView {
-                LazyVStack(spacing: 2) {
+                VStack(spacing: 2) {
                     ForEach(monitor.filteredPorts) { port in
                         let service = monitor.service(for: port)
                         PortRowView(
@@ -88,7 +99,7 @@ struct PanelView: View {
                 .padding(6)
                 .animation(.snappy, value: monitor.filteredPorts)
             }
-            .frame(maxHeight: 480)
+            .frame(height: listHeight)
         }
     }
 }

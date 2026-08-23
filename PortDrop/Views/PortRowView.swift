@@ -54,6 +54,7 @@ struct PortRowView: View {
                         Image(systemName: "arrow.up.right.square")
                     }
                     .buttonStyle(.accessoryBar)
+                    .accessibilityLabel("Open")
                     .help("Open \(url.absoluteString)")
                 }
                 killButton
@@ -85,6 +86,7 @@ struct PortRowView: View {
                 Image(systemName: "xmark.octagon")
             }
             .buttonStyle(.accessoryBar)
+            .accessibilityLabel("Kill")
             .help("Kill process (click again to confirm, ⌥ for force kill)")
         case .confirming:
             Button { performKill(force: NSEvent.modifierFlags.contains(.option)) } label: {
@@ -93,7 +95,7 @@ struct PortRowView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.small)
             .tint(.red)
-            .keyboardShortcut(.defaultAction)
+            .accessibilityLabel("Confirm kill")
         case .killing:
             ProgressView().controlSize(.small).frame(width: 28)
         }
