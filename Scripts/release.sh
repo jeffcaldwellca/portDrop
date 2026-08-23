@@ -34,14 +34,13 @@ xcodebuild -exportArchive -archivePath "$ARCHIVE" \
 APP="$EXPORT/PortDrop.app"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
-ZIP=dist/PortDrop.zip
-rm -f "$ZIP"
-ditto -c -k --keepParent "$APP" "$ZIP"
+DMG=dist/PortDrop.dmg
+Scripts/make-dmg.sh "$APP" "$DMG"
 
 if ! xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then
   cat >&2 <<MSG
 
-Signed app is at $APP (zip: $ZIP) but NOT notarized:
+Signed app + DMG are at $APP and $DMG but NOT notarized:
 no notarytool keychain profile named "$PROFILE" was found. Create one with
 
   xcrun notarytool store-credentials $PROFILE --apple-id <your-apple-id> --team-id $TEAM_ID
@@ -51,12 +50,11 @@ MSG
   exit 2
 fi
 
-echo "▸ Notarizing (this can take a few minutes)"
-xcrun notarytool submit "$ZIP" --keychain-profile "$PROFILE" --wait
+echo "▸ Notarizing DMG (this can take a few minutes)"
+xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
 
 echo "▸ Stapling"
 xcrun stapler staple "$APP"
-rm -f "$ZIP"
-ditto -c -k --keepParent "$APP" "$ZIP"
-spctl --assess --type execute --verbose=2 "$APP"
-echo "✓ Release ready: $ZIP"
+xcrun stapler staple "$DMG"
+spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
+echo "✓ Release ready: $DMG"
