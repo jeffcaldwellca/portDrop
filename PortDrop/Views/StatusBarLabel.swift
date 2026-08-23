@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// Renders the menu-bar label (icon + count) as a single template image so the glyph and digits share one baseline.
+/// Renders the menu-bar label (the PortDrop glyph + count) as a single template image so the two share one baseline.
 /// Images are cached per count so polling doesn't re-rasterise an identical label.
 @MainActor
 enum StatusBarLabel {
@@ -10,8 +10,8 @@ enum StatusBarLabel {
     static func image(count: Int) -> NSImage? {
         if let cached = cache[count] { return cached }
         let view = HStack(alignment: .center, spacing: 3) {
-            Image(systemName: "network")
-                .font(.system(size: 14, weight: .medium))
+            Image(.menuBarIcon)
+                .renderingMode(.template)
             Text("\(count)")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .monospacedDigit()

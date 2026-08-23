@@ -1,8 +1,10 @@
 import AppKit
-// Usage: swift make-dmg-background.swift <out.png> <width> <height> <scale>
-// Draws the DMG window background: soft gradient, title, and an arrow from the app slot to the Applications slot.
+// Usage: swift make-dmg-background.swift <out.png> <width> <height> <scale> [glyph.png]
+// Draws the DMG window background: soft gradient, the PortDrop mark beside the title, and an arrow
+// from the app slot to the Applications slot.
 let out = CommandLine.arguments[1]
 let w = Double(CommandLine.arguments[2])!, h = Double(CommandLine.arguments[3])!, scale = Double(CommandLine.arguments[4])!
+let glyphPath = CommandLine.arguments.count > 5 ? CommandLine.arguments[5] : "Branding/PortDropIcon.png"
 let size = NSSize(width: w * scale, height: h * scale)
 let img = NSImage(size: size)
 img.lockFocus()
@@ -27,7 +29,29 @@ func text(_ s: String, _ font: NSFont, _ color: NSColor, y: Double) {
     let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color, .paragraphStyle: para]
     NSString(string: s).draw(in: NSRect(x: 0, y: y, width: w, height: font.pointSize * 1.4), withAttributes: attrs)
 }
-text("PortDrop", NSFont.systemFont(ofSize: 30, weight: .bold), NSColor(calibratedWhite: 0.12, alpha: 1), y: h - 74)
+// Mark + wordmark are laid out as one lockup: sized and centred against the wordmark's cap band,
+// so they read as a single unit instead of two independently centred elements.
+let ink = NSColor(calibratedWhite: 0.12, alpha: 1)
+let titleFont = NSFont.systemFont(ofSize: 30, weight: .bold)
+let titleRect = NSRect(x: 0, y: h - 74, width: w, height: titleFont.pointSize * 1.4)
+let titleWidth = NSString(string: "PortDrop").size(withAttributes: [.font: titleFont]).width
+let markSize = titleFont.capHeight * 1.7, markGap = 12.0
+let lockupX = (w - (markSize + markGap + titleWidth)) / 2
+
+if let glyph = NSImage(contentsOfFile: glyphPath) {
+    let tintedGlyph = NSImage(size: glyph.size, flipped: false) { r in
+        glyph.draw(in: r); ink.set(); r.fill(using: .sourceAtop); return true }
+    let k = min(markSize / glyph.size.width, markSize / glyph.size.height)
+    let mw = glyph.size.width * k, mh = glyph.size.height * k
+    // NSString draws its first line with the top of the rect at the ascender, so derive the cap band from there.
+    let baseline = titleRect.maxY - titleFont.ascender
+    let capCentre = baseline + titleFont.capHeight / 2
+    tintedGlyph.draw(in: NSRect(x: lockupX + (markSize - mw) / 2, y: capCentre - mh / 2, width: mw, height: mh))
+}
+let leftAligned = NSMutableParagraphStyle(); leftAligned.alignment = .left
+NSString(string: "PortDrop").draw(
+    in: NSRect(x: lockupX + markSize + markGap, y: titleRect.minY, width: titleWidth + 4, height: titleRect.height),
+    withAttributes: [.font: titleFont, .foregroundColor: ink, .paragraphStyle: leftAligned])
 text("Drag to Applications to install", NSFont.systemFont(ofSize: 14, weight: .medium), NSColor(calibratedWhite: 0.45, alpha: 1), y: h - 100)
 
 // Arrow between the two icon slots (icons are centred at x = w*0.28 and x = w*0.72, y = h*0.47)

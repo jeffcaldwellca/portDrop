@@ -18,7 +18,7 @@ APP_X=$((WIN_W * 28 / 100)); APPS_X=$((WIN_W * 72 / 100)); ICON_Y=$((WIN_H * 47 
 mkdir -p build dist
 
 echo "▸ Rendering background"
-swift Scripts/make-dmg-background.swift "$BG" "$WIN_W" "$WIN_H" 2 2>/dev/null
+swift Scripts/make-dmg-background.swift "$BG" "$WIN_W" "$WIN_H" 2 Branding/PortDropIcon.png 2>/dev/null
 
 echo "▸ Building volume icon"
 ICONSET=build/VolumeIcon.iconset

@@ -40,8 +40,8 @@ struct PortDropApp: App {
                     .accessibilityLabel(StatusBarLabel.accessibilityLabel(count: count))
             } else {
                 // Fallback keeps the count visible even if offscreen rendering is unavailable.
-                HStack(alignment: .firstTextBaseline, spacing: 3) {
-                    Image(systemName: "network")
+                HStack(alignment: .center, spacing: 3) {
+                    Image(.menuBarIcon).renderingMode(.template)
                     Text("\(count)").monospacedDigit()
                 }
                 .accessibilityLabel(StatusBarLabel.accessibilityLabel(count: count))
