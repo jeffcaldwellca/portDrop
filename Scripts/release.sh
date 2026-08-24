@@ -1,16 +1,60 @@
 #!/usr/bin/env bash
-# Builds, signs (Developer ID), notarizes, staples and zips PortDrop.
-# One-time setup for notarization:
-#   xcrun notarytool store-credentials PortDrop --apple-id <you@apple-id> --team-id 88ZPCYS252
-#   (use an app-specific password from https://account.apple.com)
+# Builds, signs (Developer ID), notarizes and staples PortDrop, then packages it as a DMG
+# and notarizes/staples that too. Output: dist/PortDrop-<version>.dmg (+ .sha256)
+#
+# Environment (all optional):
+#   MARKETING_VERSION        app version; CI derives it from the vX.Y.Z tag (default: project.yml)
+#   CURRENT_PROJECT_VERSION  build number; CI uses the workflow run number   (default: project.yml)
+#   NOTARY_KEY_ID, NOTARY_ISSUER_ID, NOTARY_KEY_PATH
+#                            App Store Connect API key — used when all three are set (CI)
+#   NOTARY_PROFILE           notarytool keychain profile, used otherwise (default: PortDrop). One-time setup:
+#                              xcrun notarytool store-credentials PortDrop --apple-id <you@apple-id> --team-id 88ZPCYS252
+#                              (use an app-specific password from https://account.apple.com)
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-PROFILE="${NOTARY_PROFILE:-PortDrop}"
 TEAM_ID=88ZPCYS252
 ARCHIVE=build/PortDrop.xcarchive
 EXPORT=build/export
 mkdir -p build dist
+
+# --- Notarization credentials -------------------------------------------------------------
+NOTARY_ARGS=()
+if [[ -n "${NOTARY_KEY_ID:-}" && -n "${NOTARY_ISSUER_ID:-}" && -n "${NOTARY_KEY_PATH:-}" ]]; then
+  NOTARY_ARGS=(--key "$NOTARY_KEY_PATH" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID")
+else
+  PROFILE="${NOTARY_PROFILE:-PortDrop}"
+  if ! xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then
+    cat >&2 <<MSG
+No notarization credentials: neither NOTARY_KEY_ID/NOTARY_ISSUER_ID/NOTARY_KEY_PATH nor a
+notarytool keychain profile named "$PROFILE" was found. Create the profile with
+
+  xcrun notarytool store-credentials $PROFILE --apple-id <your-apple-id> --team-id $TEAM_ID
+
+then re-run this script.
+MSG
+    exit 2
+  fi
+  NOTARY_ARGS=(--keychain-profile "$PROFILE")
+fi
+
+# notarize <file> — submits, waits, and dumps Apple's log on anything but "Accepted".
+notarize() {
+  local file=$1 id log
+  log="build/notarize-$(basename "$file").log"
+  xcrun notarytool submit "$file" "${NOTARY_ARGS[@]}" --wait 2>&1 | tee "$log" || true
+  if ! grep -q 'status: Accepted' "$log"; then
+    id=$(awk '/^ *id: /{print $2; exit}' "$log")
+    [[ -n "$id" ]] && xcrun notarytool log "$id" "${NOTARY_ARGS[@]}" >&2 || true
+    echo "✗ Notarization of $file failed" >&2
+    exit 1
+  fi
+}
+
+# --- Build --------------------------------------------------------------------------------
+VERSION_OVERRIDES=()
+[[ -n "${MARKETING_VERSION:-}" ]] && VERSION_OVERRIDES+=("MARKETING_VERSION=$MARKETING_VERSION")
+[[ -n "${CURRENT_PROJECT_VERSION:-}" ]] && VERSION_OVERRIDES+=("CURRENT_PROJECT_VERSION=$CURRENT_PROJECT_VERSION")
 
 echo "▸ Generating project"
 xcodegen generate >/dev/null
@@ -23,6 +67,7 @@ xcodebuild -scheme PortDrop -configuration Release \
   CODE_SIGN_IDENTITY="Developer ID Application" \
   DEVELOPMENT_TEAM="$TEAM_ID" \
   OTHER_CODE_SIGN_FLAGS="--timestamp" \
+  ${VERSION_OVERRIDES[@]+"${VERSION_OVERRIDES[@]}"} \
   -quiet
 
 echo "▸ Exporting with Developer ID"
@@ -33,28 +78,24 @@ xcodebuild -exportArchive -archivePath "$ARCHIVE" \
 
 APP="$EXPORT/PortDrop.app"
 codesign --verify --deep --strict --verbose=2 "$APP"
+VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")
+BUILD=$(/usr/libexec/PlistBuddy -c 'Print CFBundleVersion' "$APP/Contents/Info.plist")
+echo "▸ PortDrop $VERSION ($BUILD)"
 
-DMG=dist/PortDrop.dmg
-Scripts/make-dmg.sh "$APP" "$DMG"
-
-if ! xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then
-  cat >&2 <<MSG
-
-Signed app + DMG are at $APP and $DMG but NOT notarized:
-no notarytool keychain profile named "$PROFILE" was found. Create one with
-
-  xcrun notarytool store-credentials $PROFILE --apple-id <your-apple-id> --team-id $TEAM_ID
-
-then re-run this script.
-MSG
-  exit 2
-fi
-
-echo "▸ Notarizing DMG (this can take a few minutes)"
-xcrun notarytool submit "$DMG" --keychain-profile "$PROFILE" --wait
-
-echo "▸ Stapling"
+# --- Notarize the app first so the copy inside the DMG carries a stapled ticket -------------
+echo "▸ Notarizing app (this can take a few minutes)"
+ZIP=build/PortDrop.zip
+rm -f "$ZIP"
+ditto -c -k --keepParent "$APP" "$ZIP"
+notarize "$ZIP"
 xcrun stapler staple "$APP"
+
+# --- Package, then notarize the DMG itself -------------------------------------------------
+DMG="dist/PortDrop-$VERSION.dmg"
+Scripts/make-dmg.sh "$APP" "$DMG"
+echo "▸ Notarizing DMG"
+notarize "$DMG"
 xcrun stapler staple "$DMG"
 spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
+(cd dist && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256")
 echo "✓ Release ready: $DMG"
