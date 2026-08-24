@@ -1,0 +1,130 @@
+name: Release
+
+# Push a tag like v1.2.3 to build, sign, notarize and publish a GitHub Release with the DMG.
+# "Run workflow" (workflow_dispatch) is a dry run: same build, but the DMG is only uploaded
+# as a workflow artifact — use it to verify the signing/notarization secrets before tagging.
+#
+# Required repository secrets:
+#   APPLE_CERTIFICATE_P12_BASE64   Developer ID Application certificate + private key, .p12, base64
+#   APPLE_CERTIFICATE_PASSWORD     password chosen when exporting the .p12
+#   APP_STORE_CONNECT_KEY_ID       App Store Connect API key ID          (Users and Access → Integrations)
+#   APP_STORE_CONNECT_ISSUER_ID    App Store Connect issuer ID
+#   APP_STORE_CONNECT_API_KEY_P8   contents of the AuthKey_<KEY_ID>.p8 file
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build, sign, notarize${{ github.ref_type == 'tag' && ', publish' || ' (dry run)' }}
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check secrets
+        env:
+          P12: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          missing=()
+          [[ -n "$P12" ]]          || missing+=(APPLE_CERTIFICATE_P12_BASE64)
+          [[ -n "$P12_PASSWORD" ]] || missing+=(APPLE_CERTIFICATE_PASSWORD)
+          [[ -n "$KEY_ID" ]]       || missing+=(APP_STORE_CONNECT_KEY_ID)
+          [[ -n "$ISSUER_ID" ]]    || missing+=(APP_STORE_CONNECT_ISSUER_ID)
+          [[ -n "$KEY_P8" ]]       || missing+=(APP_STORE_CONNECT_API_KEY_P8)
+          if (( ${#missing[@]} )); then
+            echo "::error::Missing repository secrets: ${missing[*]}"
+            exit 1
+          fi
+
+      - name: Resolve version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] \
+              || { echo "::error::Tag '$GITHUB_REF_NAME' must look like v1.2.3"; exit 1; }
+            echo "marketing=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "marketing=0.0.0" >> "$GITHUB_OUTPUT"
+          fi
+          echo "build=$GITHUB_RUN_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Import Developer ID certificate
+        env:
+          P12_BASE64: ${{ secrets.APPLE_CERTIFICATE_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          echo "$P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          # Apple's Developer ID intermediates (G1 and G2), so codesign can build a trusted chain.
+          curl -fsSL https://www.apple.com/certificateauthority/DeveloperIDCA.cer   -o "$RUNNER_TEMP/DeveloperIDCA.cer"
+          curl -fsSL https://www.apple.com/certificateauthority/DeveloperIDG2CA.cer -o "$RUNNER_TEMP/DeveloperIDG2CA.cer"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/DeveloperIDCA.cer"   -k "$KEYCHAIN" -T /usr/bin/codesign
+          security import "$RUNNER_TEMP/DeveloperIDG2CA.cer" -k "$KEYCHAIN" -T /usr/bin/codesign
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security -T /usr/bin/productbuild
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          security list-keychains -d user -s "$KEYCHAIN" login.keychain-db
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "Developer ID Application" \
+            || { echo "::error::No 'Developer ID Application' identity in the imported .p12"; exit 1; }
+          echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+      - name: Write App Store Connect API key
+        env:
+          KEY_P8: ${{ secrets.APP_STORE_CONNECT_API_KEY_P8 }}
+        run: |
+          printf '%s\n' "$KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "NOTARY_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
+      - name: Build, sign, notarize, package
+        env:
+          MARKETING_VERSION: ${{ steps.version.outputs.marketing }}
+          CURRENT_PROJECT_VERSION: ${{ steps.version.outputs.build }}
+          NOTARY_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        run: Scripts/release.sh
+
+      - name: Remove signing material
+        if: always()
+        run: |
+          [[ -n "${KEYCHAIN:-}" ]] && security delete-keychain "$KEYCHAIN" || true
+          rm -f "$RUNNER_TEMP/AuthKey.p8"
+
+      - name: Upload DMG artifact (dry run)
+        if: github.ref_type != 'tag'
+        uses: actions/upload-artifact@v7
+        with:
+          name: PortDrop-dryrun
+          path: |
+            dist/*.dmg
+            dist/*.sha256
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/PortDrop-*.dmg dist/PortDrop-*.dmg.sha256 \
+            --title "PortDrop ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            --verify-tag
