@@ -25,9 +25,18 @@
 
 ## Install
 
+With [Homebrew](https://brew.sh):
+
+```sh
+brew install --cask jeffcaldwellca/tap/portdrop
+```
+
+Or by hand:
+
 1. Download `PortDrop-<version>.dmg` from the [latest release](https://github.com/jeffcaldwellca/portDrop/releases/latest).
 2. Open it and drag **PortDrop** onto the **Applications** shortcut.
-3. Launch PortDrop from Applications or Spotlight. It lives in the menu bar — there's no Dock icon or window.
+
+Then launch PortDrop from Applications or Spotlight. It lives in the menu bar — there's no Dock icon or window.
 
 The app is signed with a Developer ID and notarized by Apple, so it opens without Gatekeeper warnings. Turn on **Launch at Login** from the ⚙︎ menu if you want it around permanently.
 
@@ -73,7 +82,7 @@ git tag v1.2.3
 git push origin v1.2.3
 ```
 
-That produces a GitHub Release with `PortDrop-1.2.3.dmg`, its `.sha256`, and auto-generated notes. `MARKETING_VERSION` comes from the tag; `CURRENT_PROJECT_VERSION` (the build number) is the workflow run number, so it always increases.
+That produces a GitHub Release with `PortDrop-1.2.3.dmg`, its `.sha256`, and auto-generated notes, and bumps the [Homebrew cask](https://github.com/jeffcaldwellca/homebrew-tap/blob/main/Casks/portdrop.rb) to match. `MARKETING_VERSION` comes from the tag; `CURRENT_PROJECT_VERSION` (the build number) is the workflow run number, so it always increases.
 
 To try the pipeline without publishing anything, open **Actions → Release → Run workflow**: it builds, signs, and notarizes exactly the same way but uploads the DMG as a workflow artifact instead of creating a release.
 
@@ -86,6 +95,7 @@ The workflow needs five repository secrets (Settings → Secrets and variables �
 | `APPLE_API_KEY_ID` | Key ID of an App Store Connect API key (Users and Access → Integrations → Team Keys; the *Developer* role is enough) |
 | `APPLE_API_ISSUER` | Issuer ID shown on the same page |
 | `APPLE_API_KEY_P8` | Full contents of the downloaded `AuthKey_<KEY_ID>.p8` |
+| `TAP_TOKEN` *(optional)* | A GitHub token with **Contents: write** on `jeffcaldwellca/homebrew-tap`. Without it the release still publishes; the cask just isn't bumped (the workflow warns). |
 
 ### Releasing locally
 

@@ -10,6 +10,8 @@ name: Release
 #   APPLE_API_KEY_ID            App Store Connect API key ID          (Users and Access → Integrations)
 #   APPLE_API_ISSUER            App Store Connect issuer ID
 #   APPLE_API_KEY_P8            contents of the AuthKey_<KEY_ID>.p8 file
+# Optional:
+#   TAP_TOKEN                   PAT with Contents: write on jeffcaldwellca/homebrew-tap; bumps Casks/portdrop.rb
 
 on:
   push:
@@ -128,3 +130,28 @@ jobs:
             --title "PortDrop ${GITHUB_REF_NAME#v}" \
             --generate-notes \
             --verify-tag
+
+      - name: Update Homebrew tap
+        if: github.ref_type == 'tag'
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+          VERSION: ${{ steps.version.outputs.marketing }}
+        run: |
+          if [[ -z "$TAP_TOKEN" ]]; then
+            echo "::warning::TAP_TOKEN secret is not set — Casks/portdrop.rb in jeffcaldwellca/homebrew-tap was NOT updated"
+            exit 0
+          fi
+          SHA256=$(cut -d' ' -f1 "dist/PortDrop-$VERSION.dmg.sha256")
+          git clone --quiet --depth 1 "https://x-access-token:$TAP_TOKEN@github.com/jeffcaldwellca/homebrew-tap.git" tap
+          cd tap
+          sed -i '' \
+            -e "s/^  version \".*\"/  version \"$VERSION\"/" \
+            -e "s/^  sha256 \".*\"/  sha256 \"$SHA256\"/" \
+            Casks/portdrop.rb
+          if git diff --quiet; then echo "Casks/portdrop.rb already at $VERSION"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/portdrop.rb
+          git commit --quiet -m "portdrop $VERSION"
+          git push --quiet
+          echo "Bumped jeffcaldwellca/tap/portdrop to $VERSION"
