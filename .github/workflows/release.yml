@@ -10,6 +10,7 @@ name: Release
 #   APPLE_API_KEY_ID            App Store Connect API key ID          (Users and Access → Integrations)
 #   APPLE_API_ISSUER            App Store Connect issuer ID
 #   APPLE_API_KEY_P8            contents of the AuthKey_<KEY_ID>.p8 file
+#   SPARKLE_PRIVATE_KEY         Sparkle EdDSA private key (generate_keys -x), signs the update + appcast
 # Optional:
 #   TAP_TOKEN                   PAT with Contents: write on jeffcaldwellca/homebrew-tap; bumps Casks/portdrop.rb
 
@@ -35,6 +36,7 @@ jobs:
           KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           ISSUER_ID: ${{ secrets.APPLE_API_ISSUER }}
           KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           missing=()
           [[ -n "$P12" ]]          || missing+=(MACOS_CERTIFICATE)
@@ -42,6 +44,7 @@ jobs:
           [[ -n "$KEY_ID" ]]       || missing+=(APPLE_API_KEY_ID)
           [[ -n "$ISSUER_ID" ]]    || missing+=(APPLE_API_ISSUER)
           [[ -n "$KEY_P8" ]]       || missing+=(APPLE_API_KEY_P8)
+          [[ -n "$SPARKLE_KEY" ]]  || missing+=(SPARKLE_PRIVATE_KEY)
           if (( ${#missing[@]} )); then
             echo "::error::Missing repository secrets: ${missing[*]}"
             exit 1
@@ -90,12 +93,15 @@ jobs:
             || { echo "::error::No 'Developer ID Application' identity in the imported .p12"; exit 1; }
           echo "KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
 
-      - name: Write App Store Connect API key
+      - name: Write App Store Connect API key and Sparkle key
         env:
           KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          SPARKLE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
         run: |
           printf '%s\n' "$KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          printf '%s\n' "$SPARKLE_KEY" > "$RUNNER_TEMP/sparkle.key"
           echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+          echo "SPARKLE_KEY_PATH=$RUNNER_TEMP/sparkle.key" >> "$GITHUB_ENV"
 
       - name: Build, sign, notarize, package
         env:
@@ -105,13 +111,36 @@ jobs:
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
         run: Scripts/release.sh
 
+      # Dry run: sign the appcast without release notes and upload everything as an artifact.
+      - name: Generate appcast (dry run)
+        if: github.ref_type != 'tag'
+        env:
+          VERSION: ${{ steps.version.outputs.marketing }}
+        run: Scripts/make-appcast.sh "dist/PortDrop-$VERSION.zip" "$SPARKLE_KEY_PATH" dist/appcast.xml
+
+      # Tag: create the release as a draft first so GitHub's generated notes can be embedded in the
+      # appcast, attach every asset, then publish — releases/latest/download/appcast.xml never 404s.
+      - name: Publish GitHub Release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.marketing }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --title "PortDrop $VERSION" --generate-notes --verify-tag
+          gh release view "$GITHUB_REF_NAME" --json body --jq .body > build/release-notes.md
+          Scripts/make-appcast.sh "dist/PortDrop-$VERSION.zip" "$SPARKLE_KEY_PATH" dist/appcast.xml build/release-notes.md
+          gh release upload "$GITHUB_REF_NAME" \
+            "dist/PortDrop-$VERSION.dmg" "dist/PortDrop-$VERSION.dmg.sha256" "dist/PortDrop-$VERSION.zip" dist/appcast.xml
+          gh release edit "$GITHUB_REF_NAME" --draft=false
+          echo "Published https://github.com/${GITHUB_REPOSITORY}/releases/tag/$GITHUB_REF_NAME"
+
       - name: Remove signing material
         if: always()
         run: |
           [[ -n "${KEYCHAIN:-}" ]] && security delete-keychain "$KEYCHAIN" || true
-          rm -f "$RUNNER_TEMP/AuthKey.p8"
+          rm -f "$RUNNER_TEMP/AuthKey.p8" "$RUNNER_TEMP/sparkle.key"
 
-      - name: Upload DMG artifact (dry run)
+      - name: Upload artifacts (dry run)
         if: github.ref_type != 'tag'
         uses: actions/upload-artifact@v7
         with:
@@ -119,17 +148,9 @@ jobs:
           path: |
             dist/*.dmg
             dist/*.sha256
+            dist/*.zip
+            dist/appcast.xml
           if-no-files-found: error
-
-      - name: Publish GitHub Release
-        if: github.ref_type == 'tag'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" dist/PortDrop-*.dmg dist/PortDrop-*.dmg.sha256 \
-            --title "PortDrop ${GITHUB_REF_NAME#v}" \
-            --generate-notes \
-            --verify-tag
 
       - name: Update Homebrew tap
         if: github.ref_type == 'tag'

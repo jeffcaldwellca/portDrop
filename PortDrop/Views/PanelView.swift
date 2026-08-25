@@ -3,6 +3,7 @@ import SwiftUI
 struct PanelView: View {
     @Bindable var monitor: PortMonitor
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
+    @ObservedObject private var updater = Updater.shared
     @State private var listContentHeight: CGFloat = 0
 
     static let width: CGFloat = 420
@@ -45,6 +46,10 @@ struct PanelView: View {
                         .onChange(of: launchAtLogin) { _, v in LaunchAtLogin.isEnabled = v }
                     Toggle("Notify on new ports", isOn: Binding(
                         get: { monitor.notifyOnNewPorts }, set: { monitor.notifyOnNewPorts = $0 }))
+                    Divider()
+                    Button("Check for Updates…") { updater.checkForUpdates() }
+                        .disabled(!updater.canCheckForUpdates)
+                    Toggle("Check for Updates Automatically", isOn: $updater.automaticallyChecksForUpdates)
                     Divider()
                     Button("About PortDrop") { showAbout() }
                     Button("Quit PortDrop") { NSApplication.shared.terminate(nil) }

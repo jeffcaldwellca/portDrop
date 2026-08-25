@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Builds, signs (Developer ID), notarizes and staples PortDrop, then packages it as a DMG
-# and notarizes/staples that too. Output: dist/PortDrop-<version>.dmg (+ .sha256)
+# and notarizes/staples that too.
+# Output: dist/PortDrop-<version>.dmg (+ .sha256) and dist/PortDrop-<version>.zip (Sparkle update archive)
 #
 # Environment (all optional):
 #   MARKETING_VERSION        app version; CI derives it from the vX.Y.Z tag (default: project.yml)
@@ -92,6 +93,9 @@ rm -f "$ZIP"
 ditto -c -k --keepParent "$APP" "$ZIP"
 notarize "$ZIP"
 xcrun stapler staple "$APP"
+UPDATE_ZIP="dist/PortDrop-$VERSION.zip"     # the stapled app, as Sparkle's update archive
+rm -f "$UPDATE_ZIP"
+ditto -c -k --keepParent "$APP" "$UPDATE_ZIP"
 
 # --- Package, then notarize the DMG itself -------------------------------------------------
 DMG="dist/PortDrop-$VERSION.dmg"
@@ -101,4 +105,4 @@ notarize "$DMG"
 xcrun stapler staple "$DMG"
 spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG"
 (cd dist && shasum -a 256 "$(basename "$DMG")" > "$(basename "$DMG").sha256")
-echo "✓ Release ready: $DMG"
+echo "✓ Release ready: $DMG and $UPDATE_ZIP"

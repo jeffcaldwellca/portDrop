@@ -4,6 +4,10 @@ options:
   deploymentTarget:
     macOS: "26.0"
   xcodeVersion: "26.0"
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: "2.9.6"
 settings:
   base:
     SWIFT_VERSION: "6.0"
@@ -15,6 +19,8 @@ targets:
     type: application
     platform: macOS
     sources: [PortDrop]
+    dependencies:
+      - package: Sparkle
     info:
       path: PortDrop/Resources/Info.plist
       properties:
@@ -24,6 +30,10 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         NSHumanReadableCopyright: ""
         LSApplicationCategoryType: public.app-category.developer-tools
+        # Sparkle: the appcast is a release asset, reached through GitHub's stable "latest" redirect.
+        SUFeedURL: $(SPARKLE_FEED_URL)
+        SUPublicEDKey: $(SPARKLE_PUBLIC_ED_KEY)
+        SUEnableAutomaticChecks: true
     entitlements:
       path: PortDrop/PortDrop.entitlements
       properties:
@@ -36,6 +46,9 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
+        # Sparkle: public half of the EdDSA key (generate_keys); releases are signed with the private half.
+        SPARKLE_PUBLIC_ED_KEY: ""
+        SPARKLE_FEED_URL: https://github.com/jeffcaldwellca/portDrop/releases/latest/download/appcast.xml
   PortDropTests:
     type: bundle.unit-test
     platform: macOS
