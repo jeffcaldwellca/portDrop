@@ -47,7 +47,7 @@ targets:
         MARKETING_VERSION: "1.0.0"
         CURRENT_PROJECT_VERSION: "1"
         # Sparkle: public half of the EdDSA key (generate_keys); releases are signed with the private half.
-        SPARKLE_PUBLIC_ED_KEY: ""
+        SPARKLE_PUBLIC_ED_KEY: "gMEWpjhy+ie6IZpvs0QZW5Uhj70y0lNFWCaZ/AYq53Q="
         SPARKLE_FEED_URL: https://github.com/jeffcaldwellca/portDrop/releases/latest/download/appcast.xml
   PortDropTests:
     type: bundle.unit-test
