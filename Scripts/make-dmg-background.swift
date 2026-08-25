@@ -2,14 +2,30 @@ import AppKit
 // Usage: swift make-dmg-background.swift <out.png> <width> <height> <scale> [glyph.png]
 // Draws the DMG window background: soft gradient, the PortDrop mark beside the title, and an arrow
 // from the app slot to the Applications slot.
-let out = CommandLine.arguments[1]
-let w = Double(CommandLine.arguments[2])!, h = Double(CommandLine.arguments[3])!, scale = Double(CommandLine.arguments[4])!
-let glyphPath = CommandLine.arguments.count > 5 ? CommandLine.arguments[5] : "Branding/PortDropIcon.png"
-let size = NSSize(width: w * scale, height: h * scale)
-let img = NSImage(size: size)
-img.lockFocus()
-NSGraphicsContext.current?.imageInterpolation = .high
-let ctx = NSGraphicsContext.current!.cgContext
+func fail(_ message: String) -> Never {
+    FileHandle.standardError.write(Data((message + "\n").utf8))
+    exit(1)
+}
+let args = CommandLine.arguments
+guard args.count >= 5, let w = Double(args[2]), let h = Double(args[3]), let scale = Double(args[4]) else {
+    fail("usage: make-dmg-background <out.png> <width> <height> <scale> [glyph.png]")
+}
+let out = args[1]
+let glyphPath = args.count > 5 ? args[5] : "Branding/PortDropIcon.png"
+
+// Draw into an explicit bitmap context rather than NSImage.lockFocus(), which needs a window-server
+// session and returns no current context on a headless CI runner.
+guard let rep = NSBitmapImageRep(
+        bitmapDataPlanes: nil, pixelsWide: Int(w * scale), pixelsHigh: Int(h * scale),
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
+        colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0),
+      let gc = NSGraphicsContext(bitmapImageRep: rep) else {
+    fail("could not create a \(Int(w * scale))×\(Int(h * scale)) drawing context")
+}
+NSGraphicsContext.saveGraphicsState()
+NSGraphicsContext.current = gc
+gc.imageInterpolation = .high
+let ctx = gc.cgContext
 ctx.scaleBy(x: scale, y: scale)
 
 // Background: light, airy gradient with a faint brand glow in the top-left.
@@ -66,7 +82,7 @@ arrow.stroke()
 // Footer
 text("© Jeffrey Caldwell", NSFont.systemFont(ofSize: 11, weight: .regular), NSColor(calibratedWhite: 0.6, alpha: 1), y: 18)
 
-img.unlockFocus()
-let rep = NSBitmapImageRep(data: img.tiffRepresentation!)!
+NSGraphicsContext.restoreGraphicsState()
 rep.size = NSSize(width: w, height: h)   // keep point size so Finder shows it at the right scale
-try! rep.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: out))
+guard let png = rep.representation(using: .png, properties: [:]) else { fail("could not encode PNG") }
+do { try png.write(to: URL(fileURLWithPath: out)) } catch { fail("could not write \(out): \(error)") }
