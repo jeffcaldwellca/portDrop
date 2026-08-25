@@ -18,6 +18,7 @@ APP_X=$((WIN_W * 28 / 100)); APPS_X=$((WIN_W * 72 / 100)); ICON_Y=$((WIN_H * 47 
 mkdir -p build dist
 
 echo "▸ Rendering background"
+mkdir -p "$(dirname "$BG")"   # Packaging/ holds only the gitignored render, so a fresh checkout lacks it
 # Compiled rather than run through `swift` immediate mode, which has crashed on CI runners.
 swiftc -O Scripts/make-dmg-background.swift -o build/make-dmg-background
 build/make-dmg-background "$BG" "$WIN_W" "$WIN_H" 2 Branding/PortDropIcon.png
