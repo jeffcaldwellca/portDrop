@@ -5,9 +5,10 @@
 # Environment (all optional):
 #   MARKETING_VERSION        app version; CI derives it from the vX.Y.Z tag (default: project.yml)
 #   CURRENT_PROJECT_VERSION  build number; CI uses the workflow run number   (default: project.yml)
-#   NOTARY_KEY_ID, NOTARY_ISSUER_ID, NOTARY_KEY_PATH
-#                            App Store Connect API key — used when all three are set (CI)
-#   NOTARY_PROFILE           notarytool keychain profile, used otherwise (default: PortDrop). One-time setup:
+#   APPLE_API_KEY_ID, APPLE_API_ISSUER
+#                            App Store Connect API key — used when both are set (CI, or locally)
+#   APPLE_API_KEY_PATH       the .p8 file (default: ~/.appstoreconnect/private_keys/AuthKey_$APPLE_API_KEY_ID.p8)
+#   NOTARY_PROFILE           notarytool keychain profile, used when no API key is given (default: PortDrop). Setup:
 #                              xcrun notarytool store-credentials PortDrop --apple-id <you@apple-id> --team-id 88ZPCYS252
 #                              (use an app-specific password from https://account.apple.com)
 set -euo pipefail
@@ -20,13 +21,15 @@ mkdir -p build dist
 
 # --- Notarization credentials -------------------------------------------------------------
 NOTARY_ARGS=()
-if [[ -n "${NOTARY_KEY_ID:-}" && -n "${NOTARY_ISSUER_ID:-}" && -n "${NOTARY_KEY_PATH:-}" ]]; then
-  NOTARY_ARGS=(--key "$NOTARY_KEY_PATH" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID")
+if [[ -n "${APPLE_API_KEY_ID:-}" && -n "${APPLE_API_ISSUER:-}" ]]; then
+  APPLE_API_KEY_PATH="${APPLE_API_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_$APPLE_API_KEY_ID.p8}"
+  [[ -f "$APPLE_API_KEY_PATH" ]] || { echo "APPLE_API_KEY_PATH does not exist: $APPLE_API_KEY_PATH" >&2; exit 2; }
+  NOTARY_ARGS=(--key "$APPLE_API_KEY_PATH" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER")
 else
   PROFILE="${NOTARY_PROFILE:-PortDrop}"
   if ! xcrun notarytool history --keychain-profile "$PROFILE" >/dev/null 2>&1; then
     cat >&2 <<MSG
-No notarization credentials: neither NOTARY_KEY_ID/NOTARY_ISSUER_ID/NOTARY_KEY_PATH nor a
+No notarization credentials: neither APPLE_API_KEY_ID/APPLE_API_ISSUER nor a
 notarytool keychain profile named "$PROFILE" was found. Create the profile with
 
   xcrun notarytool store-credentials $PROFILE --apple-id <your-apple-id> --team-id $TEAM_ID

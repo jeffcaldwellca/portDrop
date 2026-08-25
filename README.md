@@ -81,25 +81,26 @@ The workflow needs five repository secrets (Settings → Secrets and variables �
 
 | Secret | Value |
 | --- | --- |
-| `APPLE_CERTIFICATE_P12_BASE64` | Your **Developer ID Application** certificate *and* private key, exported from Keychain Access as a `.p12`, then `base64 -i cert.p12` |
-| `APPLE_CERTIFICATE_PASSWORD` | The password you chose when exporting the `.p12` |
-| `APP_STORE_CONNECT_KEY_ID` | Key ID of an App Store Connect API key (Users and Access → Integrations → Team Keys; the *Developer* role is enough) |
-| `APP_STORE_CONNECT_ISSUER_ID` | Issuer ID shown on the same page |
-| `APP_STORE_CONNECT_API_KEY_P8` | Full contents of the downloaded `AuthKey_<KEY_ID>.p8` |
+| `MACOS_CERTIFICATE` | Your **Developer ID Application** certificate *and* private key, exported from Keychain Access as a `.p12`, then `base64 -i cert.p12` |
+| `MACOS_CERTIFICATE_PASSWORD` | The password you chose when exporting the `.p12` |
+| `APPLE_API_KEY_ID` | Key ID of an App Store Connect API key (Users and Access → Integrations → Team Keys; the *Developer* role is enough) |
+| `APPLE_API_ISSUER` | Issuer ID shown on the same page |
+| `APPLE_API_KEY_P8` | Full contents of the downloaded `AuthKey_<KEY_ID>.p8` |
 
 ### Releasing locally
 
-The same script the workflow runs also works on your Mac, using a `notarytool` keychain profile instead of the API key. One-time setup (use an [app-specific password](https://account.apple.com)):
+The same script the workflow runs also works on your Mac. With the same App Store Connect key (the `.p8` is looked up at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` unless `APPLE_API_KEY_PATH` says otherwise):
+
+```sh
+APPLE_API_KEY_ID=<key-id> APPLE_API_ISSUER=<issuer-id> Scripts/release.sh     # → dist/PortDrop-<version>.dmg (+ .sha256)
+MARKETING_VERSION=1.2.3 APPLE_API_KEY_ID=… APPLE_API_ISSUER=… Scripts/release.sh   # override the version from project.yml
+```
+
+Without an API key, the script falls back to a `notarytool` keychain profile named `PortDrop` (one-time setup with an [app-specific password](https://account.apple.com)):
 
 ```sh
 xcrun notarytool store-credentials PortDrop --apple-id <apple-id> --team-id 88ZPCYS252
-```
-
-Then:
-
-```sh
-Scripts/release.sh                                # → dist/PortDrop-<version>.dmg (+ .sha256), signed, notarized, stapled
-MARKETING_VERSION=1.2.3 Scripts/release.sh        # override the version from project.yml
+Scripts/release.sh
 ```
 
 The script notarizes and staples the app first, so the copy inside the DMG carries its own ticket, then builds the DMG and notarizes and staples that as well. To build just the drag-to-install DMG from an already-exported app:
