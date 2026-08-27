@@ -1,0 +1,13 @@
+{
+  "name": "PortDrop",
+  "short_name": "PortDrop",
+  "description": "A free macOS menu-bar app that lists every process listening on a local TCP port — open it in one click, kill it in two.",
+  "start_url": "./",
+  "display": "browser",
+  "background_color": "#f7f8fb",
+  "theme_color": "#2973f2",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
