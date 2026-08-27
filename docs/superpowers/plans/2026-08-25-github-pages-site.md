@@ -20,6 +20,7 @@
 - Brand colours from `Scripts/make-branding.swift`: blue `#2973F2` (0.16, 0.45, 0.95), purple `#7333D9` (0.45, 0.20, 0.85).
 - Commit messages: no AI co-author trailers (global CLAUDE.md rule).
 - Every generated HTML file must contain **zero** unresolved `{{…}}` placeholders — the build throws otherwise.
+- Superseded during execution (Task 9): the base URL is `https://www.jeffcaldwell.ca/portDrop/`, not the github.io URL used in the code blocks below — see the spec's URL decision.
 
 ## File structure
 ```

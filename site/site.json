@@ -2,7 +2,7 @@
   "name": "PortDrop",
   "tagline": "See every process listening on a local port — open it in one click, kill it in two.",
   "description": "PortDrop is a free macOS menu-bar app that lists every process listening on a local TCP port, opens the service in one click, and kills the process in two. Install with Homebrew or a DMG. Requires macOS 26 or later.",
-  "baseUrl": "https://jeffcaldwellca.github.io/portDrop/",
+  "baseUrl": "https://www.jeffcaldwell.ca/portDrop/",
   "repo": "jeffcaldwellca/portDrop",
   "author": { "name": "Jeff Caldwell", "url": "https://github.com/jeffcaldwellca" },
   "minimumOS": "macOS 26 Tahoe",

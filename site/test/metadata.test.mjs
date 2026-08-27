@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { absolute, buildJsonLd, buildSitemap, buildRobots, buildLlmsTxt } from '../lib/metadata.mjs';
 
 const site = {
-  name: 'PortDrop', tagline: 'Tag line.', description: 'Desc.', baseUrl: 'https://jeffcaldwellca.github.io/portDrop/',
+  name: 'PortDrop', tagline: 'Tag line.', description: 'Desc.', baseUrl: 'https://www.jeffcaldwell.ca/portDrop/',
   repo: 'jeffcaldwellca/portDrop', repoUrl: 'https://github.com/jeffcaldwellca/portDrop',
   issuesUrl: 'https://github.com/jeffcaldwellca/portDrop/issues', releasesUrl: 'https://github.com/jeffcaldwellca/portDrop/releases',
   feedUrl: 'https://github.com/jeffcaldwellca/portDrop/releases.atom',
@@ -14,8 +14,8 @@ const latest = { version: '1.0.1', date: '2026-08-25', dateLabel: 'August 25, 20
 const first = { ...latest, version: '1.0.0', date: '2026-08-20' };
 
 test('absolute resolves against the base URL, keeping the /portDrop/ prefix', () => {
-  assert.equal(absolute(site, 'releases/'), 'https://jeffcaldwellca.github.io/portDrop/releases/');
-  assert.equal(absolute(site, ''), 'https://jeffcaldwellca.github.io/portDrop/');
+  assert.equal(absolute(site, 'releases/'), 'https://www.jeffcaldwell.ca/portDrop/releases/');
+  assert.equal(absolute(site, ''), 'https://www.jeffcaldwell.ca/portDrop/');
 });
 
 test('home JSON-LD has WebSite, SoftwareApplication and FAQPage with the right fields', () => {
@@ -31,8 +31,8 @@ test('home JSON-LD has WebSite, SoftwareApplication and FAQPage with the right f
   assert.equal(app.installUrl, site.homebrew.caskUrl);
   assert.equal(app.operatingSystem, 'macOS 26 or later');
   assert.equal(app.applicationCategory, 'DeveloperApplication');
-  assert.equal(app.releaseNotes, 'https://jeffcaldwellca.github.io/portDrop/releases/');
-  assert.equal(app.screenshot, 'https://jeffcaldwellca.github.io/portDrop/assets/panel-light.png');
+  assert.equal(app.releaseNotes, 'https://www.jeffcaldwell.ca/portDrop/releases/');
+  assert.equal(app.screenshot, 'https://www.jeffcaldwell.ca/portDrop/assets/panel-light.png');
   assert.equal(app.fileSize, '3962 KB');
   assert.deepEqual(app.offers, { '@type': 'Offer', price: '0', priceCurrency: 'USD' });
   assert.deepEqual(app.author, { '@type': 'Person', name: 'Jeff Caldwell', url: 'https://github.com/jeffcaldwellca' });
@@ -43,7 +43,7 @@ test('home JSON-LD has WebSite, SoftwareApplication and FAQPage with the right f
 test('releases JSON-LD has a breadcrumb plus the app, and no FAQ', () => {
   const graph = JSON.parse(buildJsonLd({ site, latest, first, page: 'releases' }))['@graph'];
   assert.deepEqual(graph.map((n) => n['@type']), ['BreadcrumbList', 'SoftwareApplication']);
-  assert.equal(graph[0].itemListElement[1].item, 'https://jeffcaldwellca.github.io/portDrop/releases/');
+  assert.equal(graph[0].itemListElement[1].item, 'https://www.jeffcaldwell.ca/portDrop/releases/');
 });
 
 test('JSON-LD never contains a raw </script> terminator', () => {
@@ -56,12 +56,12 @@ test('JSON-LD never contains a raw </script> terminator', () => {
 test('sitemap lists every page with lastmod', () => {
   const xml = buildSitemap(site, [{ path: '', lastmod: '2026-08-25' }, { path: 'releases/', lastmod: '2026-08-25' }]);
   assert.match(xml, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
-  assert.match(xml, /<loc>https:\/\/jeffcaldwellca\.github\.io\/portDrop\/<\/loc>\s*<lastmod>2026-08-25<\/lastmod>/);
-  assert.match(xml, /<loc>https:\/\/jeffcaldwellca\.github\.io\/portDrop\/releases\/<\/loc>/);
+  assert.match(xml, /<loc>https:\/\/www\.jeffcaldwell\.ca\/portDrop\/<\/loc>\s*<lastmod>2026-08-25<\/lastmod>/);
+  assert.match(xml, /<loc>https:\/\/www\.jeffcaldwell\.ca\/portDrop\/releases\/<\/loc>/);
 });
 
 test('robots allows everything and points at the sitemap', () => {
-  assert.equal(buildRobots(site), 'User-agent: *\nAllow: /\n\nSitemap: https://jeffcaldwellca.github.io/portDrop/sitemap.xml\n');
+  assert.equal(buildRobots(site), 'User-agent: *\nAllow: /\n\nSitemap: https://www.jeffcaldwell.ca/portDrop/sitemap.xml\n');
 });
 
 test('llms.txt summarises the product with the latest version and install commands', () => {

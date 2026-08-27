@@ -1,10 +1,10 @@
 # PortDrop website (GitHub Pages) — Design Spec (2026-08-25)
 
 ## Purpose
-A product site for PortDrop at **https://jeffcaldwellca.github.io/portDrop/** that explains what the app does, gets people installed (Homebrew or DMG), and lists every release with its notes — built to rank in search and to be quoted accurately by AI assistants (SEO + AEO), with rich structured metadata and zero tracking.
+A product site for PortDrop at **https://www.jeffcaldwell.ca/portDrop/** that explains what the app does, gets people installed (Homebrew or DMG), and lists every release with its notes — built to rank in search and to be quoted accurately by AI assistants (SEO + AEO), with rich structured metadata and zero tracking.
 
 ## Decisions (from brainstorming)
-- **URL**: `https://jeffcaldwellca.github.io/portDrop/` (project Pages site, `/portDrop/` subpath). The base URL is one value in `site/site.json`; a custom domain later is a `CNAME` file plus that one edit.
+- **URL**: `https://www.jeffcaldwell.ca/portDrop/` (project Pages site, `/portDrop/` subpath). The base URL is one value in `site/site.json`; a custom domain later is a `CNAME` file plus that one edit. (Changed during implementation: the account's user site carries the custom domain `www.jeffcaldwell.ca`, which GitHub applies to every project site, so the github.io URL 301-redirects there.)
 - **Licensing**: the site makes **no license claim** anywhere — no "open source", no "MIT", no `license` property in JSON-LD. It links to the source on GitHub and calls the app "free".
 - **Scope**: landing page (`/`), releases page (`/releases/`), `404.html`. No docs subsite.
 - **Analytics**: none. No cookies, no third-party requests, no web fonts. The privacy section says so.
@@ -134,7 +134,7 @@ jobs:
 
 ## Repo-side setup (one-time)
 - Enable Pages with source **GitHub Actions**: `gh api -X POST repos/jeffcaldwellca/portDrop/pages -f build_type=workflow` (or via Settings → Pages).
-- `gh repo edit --homepage https://jeffcaldwellca.github.io/portDrop/`.
+- `gh repo edit --homepage https://www.jeffcaldwell.ca/portDrop/`.
 - README: add a **Website** link/badge in the header block; keep everything else.
 - `.gitignore`: add `_site/`.
 - Run `Scripts/make-site-icons.sh` and `Scripts/make-og-image.swift` once and commit their outputs.

@@ -33,7 +33,7 @@ const stubs = {
 };
 
 test('deriveSite adds repo URLs, the brew command and the path prefix', () => {
-  const s = deriveSite({ baseUrl: 'https://jeffcaldwellca.github.io/portDrop/', repo: 'jeffcaldwellca/portDrop', homebrew: { tap: 'jeffcaldwellca/tap', cask: 'portdrop' } });
+  const s = deriveSite({ baseUrl: 'https://www.jeffcaldwell.ca/portDrop/', repo: 'jeffcaldwellca/portDrop', homebrew: { tap: 'jeffcaldwellca/tap', cask: 'portdrop' } });
   assert.equal(s.repoUrl, 'https://github.com/jeffcaldwellca/portDrop');
   assert.equal(s.issuesUrl, 'https://github.com/jeffcaldwellca/portDrop/issues');
   assert.equal(s.releasesUrl, 'https://github.com/jeffcaldwellca/portDrop/releases');
@@ -66,8 +66,8 @@ test('build writes a complete site from stubbed release data', async () => {
 
     // Landing page: title/canonical/OG, latest release stamped in, JSON-LD parses with the expected types.
     assert.match(index, /<title>PortDrop — see and kill whatever is listening on your Mac&#39;s ports<\/title>/);
-    assert.match(index, /<link rel="canonical" href="https:\/\/jeffcaldwellca\.github\.io\/portDrop\/">/);
-    assert.match(index, /<meta property="og:image" content="https:\/\/jeffcaldwellca\.github\.io\/portDrop\/og-image\.png">/);
+    assert.match(index, /<link rel="canonical" href="https:\/\/www\.jeffcaldwell\.ca\/portDrop\/">/);
+    assert.match(index, /<meta property="og:image" content="https:\/\/www\.jeffcaldwell\.ca\/portDrop\/og-image\.png">/);
     assert.match(index, /Download PortDrop 1\.0\.1 for macOS/);
     assert.match(index, /href="https:\/\/github\.com\/jeffcaldwellca\/portDrop\/releases\/download\/v1\.0\.1\/PortDrop-1\.0\.1\.dmg"/);
     assert.match(index, /brew install --cask jeffcaldwellca\/tap\/portdrop/);
@@ -97,8 +97,8 @@ test('build writes a complete site from stubbed release data', async () => {
 
     // Site-level files and copied assets.
     const sitemap = await readFile(join(outDir, 'sitemap.xml'), 'utf8');
-    assert.match(sitemap, /<loc>https:\/\/jeffcaldwellca\.github\.io\/portDrop\/releases\/<\/loc>\s*<lastmod>2026-08-25<\/lastmod>/);
-    assert.match(await readFile(join(outDir, 'robots.txt'), 'utf8'), /Sitemap: https:\/\/jeffcaldwellca\.github\.io\/portDrop\/sitemap\.xml/);
+    assert.match(sitemap, /<loc>https:\/\/www\.jeffcaldwell\.ca\/portDrop\/releases\/<\/loc>\s*<lastmod>2026-08-25<\/lastmod>/);
+    assert.match(await readFile(join(outDir, 'robots.txt'), 'utf8'), /Sitemap: https:\/\/www\.jeffcaldwell\.ca\/portDrop\/sitemap\.xml/);
     assert.match(await readFile(join(outDir, 'llms.txt'), 'utf8'), /Latest version: 1\.0\.1/);
     for (const f of ['.nojekyll', 'styles.css', 'og-image.png', 'favicon.ico', 'site.webmanifest', 'assets/panel-light.png', 'assets/panel-dark.png']) {
       await stat(join(outDir, f));

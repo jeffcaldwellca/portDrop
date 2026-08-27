@@ -17,8 +17,8 @@
 </p>
 
 <p align="center">
-  <a href="https://jeffcaldwellca.github.io/portDrop/"><b>Website</b></a> ·
-  <a href="https://jeffcaldwellca.github.io/portDrop/releases/">Releases</a> ·
+  <a href="https://www.jeffcaldwell.ca/portDrop/"><b>Website</b></a> ·
+  <a href="https://www.jeffcaldwell.ca/portDrop/releases/">Releases</a> ·
   <a href="https://github.com/jeffcaldwellca/portDrop/releases/latest">Download</a>
 </p>
 
