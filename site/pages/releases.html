@@ -1,0 +1,7 @@
+<nav class="crumbs" aria-label="Breadcrumb"><a href="{{root}}/">Home</a> › Releases</nav>
+<h1>{{site.name}} releases</h1>
+<p class="lede">Every {{site.name}} release, newest first, with notes, downloads, and checksums. The latest is <a href="{{latest.dmg.url}}">PortDrop {{latest.version}}</a>, published {{latest.dateLabel}}.</p>
+<p>You rarely need this page to update: PortDrop checks once a day and offers to install new releases itself (⚙︎ → <strong>Check for Updates…</strong>), and Homebrew users can run <code>brew upgrade {{site.homebrew.cask}}</code>. Prefer a feed? Subscribe to the <a href="{{site.feedUrl}}">releases Atom feed</a>.</p>
+<div class="releases">
+{{{releases}}}
+</div>

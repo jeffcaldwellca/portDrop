@@ -1,0 +1,80 @@
+<section class="hero" aria-labelledby="hero-h">
+  <div class="hero-text">
+    <img class="app-icon" src="{{root}}/icon-512.png" width="128" height="128" alt="">
+    <h1 id="hero-h">{{site.name}}</h1>
+    <p class="tagline">{{site.tagline}}</p>
+    <p class="lede">A free macOS menu-bar app that shows every process listening on a local TCP port — with the app's real icon, the owner, the PID, and a link straight to the service. Search it, open it, or kill it.</p>
+    <p class="cta">
+      <a class="button" href="{{latest.dmg.url}}">Download PortDrop {{latest.version}} for macOS</a>
+      <span class="muted small">{{latest.dmg.sizeLabel}} · <a href="{{latest.sha256Url}}">SHA-256</a> · <a href="{{root}}/releases/">what's new</a></span>
+    </p>
+    <div class="cmd"><pre><code>{{site.homebrew.command}}</code></pre><button type="button" data-copy="{{site.homebrew.command}}" hidden>Copy</button></div>
+    <p class="muted small">Requires {{site.minimumOS}} or later. Signed with an Apple Developer ID and notarized.</p>
+  </div>
+  <figure class="hero-shot">
+    <picture>
+      <source srcset="{{root}}/assets/panel-dark.png" media="(prefers-color-scheme: dark)">
+      <img src="{{root}}/assets/panel-light.png" width="420" height="563" decoding="async" alt="The PortDrop panel: a searchable list of listening ports, each with the owning app's icon, a protocol chip, owner and PID, the port number, and Open and Kill buttons">
+    </picture>
+  </figure>
+</section>
+
+<section id="features" aria-labelledby="features-h">
+  <h2 id="features-h">See what's listening on every port</h2>
+  <p class="lede">Dev servers, databases, SSH, that thing squatting on port 3000 — PortDrop shows them all, live, and gives you the two actions you actually want.</p>
+  <ul class="features">
+    <li><h3>Every listening TCP port, live</h3><p>Polled with <code>lsof</code> every 2 seconds while the panel is open and every 10 seconds in the background.</p></li>
+    <li><h3>Real app icons</h3><p>Looked up through the running app or its bundle, with SF Symbol fallbacks for daemons and command-line tools.</p></li>
+    <li><h3>Service detection</h3><p>HTTP/S, SSH, FTP, PostgreSQL, MySQL, Redis, MongoDB, VNC, SMB, AFP and more — by process name and well-known port, plus a quick HTTP probe so unknown web servers get a link too.</p></li>
+    <li><h3>Open in one click</h3><p>↗ launches the service URL in its default handler: <code>http://</code>, <code>ssh://</code>, <code>postgresql://</code>, and so on.</p></li>
+    <li><h3>Kill in two — never the wrong thing</h3><p>Click ⊗, then the red <strong>Confirm</strong> that appears (it reverts after 3 seconds). Sends <code>SIGTERM</code>; hold ⌥ for <code>SIGKILL</code>.</p></li>
+    <li><h3>Admin escalation when needed</h3><p>If the process belongs to root or another user, PortDrop uses the standard macOS administrator-password dialog instead of failing silently.</p></li>
+    <li><h3>Search</h3><p>By port, process, user, or protocol. Type <code>5432</code> or <code>postgres</code> and it's right there.</p></li>
+    <li><h3>Right-click for more</h3><p>Open, Copy URL / PID / host:port, Reveal in Finder, Kill, and Force Kill.</p></li>
+    <li><h3>Menu-bar badge</h3><p>The PortDrop mark plus the number of listening ports, always in view.</p></li>
+    <li><h3>New-port notifications</h3><p>Optionally get told when something starts listening.</p></li>
+    <li><h3>Launch at Login</h3><p>One toggle in the ⚙︎ menu, using Apple's <code>SMAppService</code>.</p></li>
+    <li><h3>Nothing leaves your Mac</h3><p>No analytics, no telemetry, no accounts. The only network traffic is a local HTTP probe and a daily update check you can turn off.</p></li>
+  </ul>
+</section>
+
+<section id="install" aria-labelledby="install-h">
+  <h2 id="install-h">Install PortDrop on macOS</h2>
+  <div class="cols">
+    <div>
+      <h3>With Homebrew</h3>
+      <div class="cmd"><pre><code>{{site.homebrew.command}}</code></pre><button type="button" data-copy="{{site.homebrew.command}}" hidden>Copy</button></div>
+      <p>Later, <code>brew upgrade {{site.homebrew.cask}}</code> updates it — or let PortDrop update itself.</p>
+    </div>
+    <div>
+      <h3>With the DMG</h3>
+      <ol>
+        <li><a href="{{latest.dmg.url}}">Download PortDrop-{{latest.version}}.dmg</a> ({{latest.dmg.sizeLabel}}).</li>
+        <li>Open it and drag <strong>PortDrop</strong> onto the <strong>Applications</strong> shortcut.</li>
+        <li>Launch PortDrop from Applications or Spotlight. It appears in the menu bar — there's no Dock icon or window.</li>
+      </ol>
+      <p>To verify the download: <code>shasum -a 256 -c PortDrop-{{latest.version}}.dmg.sha256</code> (<a href="{{latest.sha256Url}}">checksum file</a>).</p>
+    </div>
+  </div>
+  <p>PortDrop is signed with an Apple Developer ID and notarized by Apple, so it opens without Gatekeeper warnings. Turn on <strong>Launch at Login</strong> from the ⚙︎ menu to keep it around. It checks for a new release once a day and offers to install it; choose ⚙︎ → <strong>Check for Updates…</strong> to check now. Prefer to build it yourself? See <a href="{{site.buildUrl}}">Build from source</a> in the README.</p>
+</section>
+
+<section id="how-it-works" aria-labelledby="how-h">
+  <h2 id="how-h">How PortDrop works</h2>
+  <p>PortDrop runs <code>lsof -iTCP -sTCP:LISTEN</code> and turns the output into a list of listening ports, one row per process and port. For each row it asks macOS which running app or bundle owns the process to get a real icon and name, and it classifies the service by process name and well-known port so it can build a URL. Ports it can't classify get a quick HTTP <code>HEAD</code> request — to <code>127.0.0.1</code> or <code>::1</code> only — so a dev server on an unusual port still gets an <code>http://</code> link.</p>
+  <p><strong>Kill</strong> sends <code>SIGTERM</code> so the process can shut down cleanly; <strong>Force Kill</strong> (hold ⌥ while confirming, or use the right-click menu) sends <code>SIGKILL</code>. Your own processes are signalled directly. For processes owned by root or another user, PortDrop asks macOS for administrator privileges through the standard dialog — there is no privileged helper running in the background.</p>
+  <p>Because <code>lsof</code> and <code>kill</code> need direct access to other processes, PortDrop is deliberately not sandboxed. It is hardened-runtime, Developer ID-signed, and notarized.</p>
+</section>
+
+<section id="privacy" aria-labelledby="privacy-h">
+  <h2 id="privacy-h">Privacy</h2>
+  <p>Nothing leaves your Mac. PortDrop has no analytics, telemetry, crash reporting, or accounts. Its only network activity is the local HTTP probe described above and a once-a-day check of the GitHub release feed for updates, which you can turn off in the ⚙︎ menu.</p>
+  <p>This website is static, sets no cookies, and loads nothing from third parties.</p>
+</section>
+
+<section id="faq" aria-labelledby="faq-h">
+  <h2 id="faq-h">Frequently asked questions</h2>
+  <dl class="faq">
+{{{faq}}}
+  </dl>
+</section>

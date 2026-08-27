@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{title}}</title>
+<meta name="description" content="{{description}}">
+<link rel="canonical" href="{{canonical}}">
+<meta name="robots" content="{{robots}}">
+<meta name="author" content="{{site.author.name}}">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="{{site.themeColor.light}}">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="{{site.themeColor.dark}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{site.name}}">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="{{title}}">
+<meta property="og:description" content="{{description}}">
+<meta property="og:url" content="{{canonical}}">
+<meta property="og:image" content="{{ogImage}}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{site.name}} — {{site.tagline}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{title}}">
+<meta name="twitter:description" content="{{description}}">
+<meta name="twitter:image" content="{{ogImage}}">
+<meta name="twitter:image:alt" content="{{site.name}} — {{site.tagline}}">
+<link rel="icon" href="{{root}}/favicon.ico" sizes="32x32">
+<link rel="icon" href="{{root}}/favicon-32.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="{{root}}/apple-touch-icon.png">
+<link rel="manifest" href="{{root}}/site.webmanifest">
+<link rel="alternate" type="application/atom+xml" title="{{site.name}} releases" href="{{site.feedUrl}}">
+<link rel="stylesheet" href="{{root}}/styles.css">
+{{{jsonld}}}
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="top">
+  <nav class="wrap" aria-label="Primary">
+    <a class="brand" href="{{root}}/"><img src="{{root}}/favicon-32.png" width="24" height="24" alt="">{{site.name}}</a>
+    <a href="{{root}}/#install">Install</a>
+    <a href="{{root}}/#faq">FAQ</a>
+    <a href="{{root}}/releases/">Releases</a>
+    <a href="{{site.repoUrl}}">GitHub</a>
+  </nav>
+</header>
+<main id="main" class="wrap">
+{{{content}}}
+</main>
+<footer class="bottom">
+  <div class="wrap">
+    <p><a href="{{site.repoUrl}}">Source on GitHub</a> · <a href="{{site.releasesUrl}}">Releases</a> · <a href="{{site.issuesUrl}}">Report an issue</a></p>
+    <p>Made by <a href="{{site.author.url}}">{{site.author.name}}</a>. Requires {{site.minimumOS}} or later. This site sets no cookies and runs no analytics.</p>
+  </div>
+</footer>
+<script>
+(() => {
+  if (!navigator.clipboard) return;
+  for (const btn of document.querySelectorAll('[data-copy]')) {
+    btn.hidden = false;
+    btn.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(btn.dataset.copy); btn.textContent = 'Copied'; }
+      catch { btn.textContent = 'Press ⌘C'; }
+      setTimeout(() => { btn.textContent = 'Copy'; }, 1500);
+    });
+  }
+})();
+</script>
+</body>
+</html>
