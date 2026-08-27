@@ -138,11 +138,12 @@ jobs:
 - README: add a **Website** link/badge in the header block; keep everything else.
 - `.gitignore`: add `_site/`.
 - Run `Scripts/make-site-icons.sh` and `Scripts/make-og-image.swift` once and commit their outputs.
+- Because the site is served under `www.jeffcaldwell.ca`, crawlers read `https://www.jeffcaldwell.ca/robots.txt` (from the `jeffcaldwellca.github.io` repo), not `/portDrop/robots.txt`. Add `Sitemap: https://www.jeffcaldwell.ca/portDrop/sitemap.xml` to that file and/or submit the sitemap in Search Console. The generated `/portDrop/robots.txt` is kept for completeness.
 
 ## Testing & verification
 - Unit: `node --test site/build.test.mjs` for the pure functions above (fixtures for two releases incl. a draft and a pre-release; markdown renderer stub).
 - Build gate: the placeholder assertion and non-empty release list make a broken build fail in CI, never a broken page.
-- Manual before declaring done: open the live URL in both colour schemes; Lighthouse (performance/accessibility/best-practices/SEO — target 100 each); Google Rich Results Test on `/` (SoftwareApplication + FAQPage detected, no errors); an OG preview check; confirm `/portDrop/sitemap.xml`, `/robots.txt`, `/llms.txt`, `/404` respond; confirm the copy button works and degrades without JS.
+- Manual before declaring done: open the live URL in both colour schemes; Lighthouse (performance/accessibility/best-practices/SEO — target 100 each); Google Rich Results Test / schema.org validator on `/` (SoftwareApplication and FAQPage parse without errors; a warning that `aggregateRating`/`review` is missing is expected and must not be fixed by fabricating ratings; note Google shows FAQ rich results only for authoritative government/health sites, so FAQPage here is an AEO/parsing asset rather than a SERP feature); an OG preview check; confirm `/portDrop/sitemap.xml`, `/robots.txt`, `/llms.txt`, `/404` respond; confirm the copy button works and degrades without JS.
 - After the next real release: confirm the Release workflow's completion triggers `pages.yml` and the new version appears on `/` and `/releases/`.
 
 ## Out of scope

@@ -28,7 +28,7 @@ const FIXTURE = [
 ];
 const stubs = {
   fetchReleases: async () => FIXTURE,
-  renderMarkdown: async (text) => `<p>${text}</p>`,
+  renderMarkdown: async (text) => `<h2 dir="auto">What's Changed</h2><p>${text}</p>`,
   log: () => {},
 };
 
@@ -62,6 +62,7 @@ test('build writes a complete site from stubbed release data', async () => {
       assert.match(html, /<html lang="en">/);
       assert.doesNotMatch(html, /open source|MIT licen|licen[cs]e/i, `${name} mentions licensing`);
       assert.doesNotMatch(html, /<script src=|<link rel="stylesheet" href="https?:|https:\/\/fonts\.|googletagmanager|google-analytics|plausible\.io/i, `${name} loads third-party resources`);
+      assert.equal((html.match(/<h1[\s>]/g) || []).length, 1, `${name} must have exactly one h1`);
     }
 
     // Landing page: title/canonical/OG, latest release stamped in, JSON-LD parses with the expected types.
@@ -87,6 +88,8 @@ test('build writes a complete site from stubbed release data', async () => {
     assert.equal((releases.match(/badge-latest/g) || []).length, 1);
     assert.match(releases, /badge-pre">Pre-release/);
     assert.match(releases, /<p>Notes for 1\.0\.1<\/p>/);
+    assert.doesNotMatch(releases, /<h2 dir="auto">/);
+    assert.match(releases, /<h3 dir="auto">What's Changed<\/h3>/);
     const ld2 = JSON.parse(releases.match(/<script type="application\/ld\+json">(.*?)<\/script>/s)[1]);
     assert.deepEqual(ld2['@graph'].map((n) => n['@type']), ['BreadcrumbList', 'SoftwareApplication']);
 
@@ -100,7 +103,7 @@ test('build writes a complete site from stubbed release data', async () => {
     assert.match(sitemap, /<loc>https:\/\/www\.jeffcaldwell\.ca\/portDrop\/releases\/<\/loc>\s*<lastmod>2026-08-25<\/lastmod>/);
     assert.match(await readFile(join(outDir, 'robots.txt'), 'utf8'), /Sitemap: https:\/\/www\.jeffcaldwell\.ca\/portDrop\/sitemap\.xml/);
     assert.match(await readFile(join(outDir, 'llms.txt'), 'utf8'), /Latest version: 1\.0\.1/);
-    for (const f of ['.nojekyll', 'styles.css', 'og-image.png', 'favicon.ico', 'site.webmanifest', 'assets/panel-light.png', 'assets/panel-dark.png']) {
+    for (const f of ['.nojekyll', 'styles.css', 'og-image.png', 'favicon.ico', 'icon-256.png', 'site.webmanifest', 'assets/panel-light.png', 'assets/panel-dark.png']) {
       await stat(join(outDir, f));
     }
   } finally {

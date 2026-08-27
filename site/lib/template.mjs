@@ -21,6 +21,7 @@ export function render(template, ctx) {
 }
 
 export function assertNoPlaceholders(html, name) {
-  const leftover = html.match(/\{\{[^}]*\}\}/);
+  const outsideCode = html.replace(/<(code|pre)\b[^>]*>[\s\S]*?<\/\1>/gi, '');
+  const leftover = outsideCode.match(/\{\{[^}]*\}\}/);
   if (leftover) throw new Error(`Unresolved placeholder ${leftover[0]} in ${name}`);
 }

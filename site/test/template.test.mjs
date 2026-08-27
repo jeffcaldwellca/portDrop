@@ -27,3 +27,8 @@ test('assertNoPlaceholders reports the first leftover placeholder and the file',
   assert.doesNotThrow(() => assertNoPlaceholders('<p>fine</p>', 'index.html'));
   assert.throws(() => assertNoPlaceholders('<p>{{ oops }}</p>', 'index.html'), /Unresolved placeholder \{\{ oops \}\} in index\.html/);
 });
+
+test('assertNoPlaceholders ignores braces inside code and pre elements', () => {
+  assert.doesNotThrow(() => assertNoPlaceholders('<p>see <code class="notranslate">{{x}}</code> and <pre>{{y}}</pre></p>', 'r.html'));
+  assert.throws(() => assertNoPlaceholders('<p><code>{{ok}}</code> {{bad}}</p>', 'r.html'), /\{\{bad\}\}/);
+});

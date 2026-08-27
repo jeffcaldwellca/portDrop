@@ -8,6 +8,7 @@ OUT=site/static
 mkdir -p "$OUT"
 
 cp "$SRC/icon_512x512@1x.png" "$OUT/icon-512.png"
+cp "$SRC/icon_256x256@1x.png" "$OUT/icon-256.png"
 cp "$SRC/icon_32x32@1x.png"   "$OUT/favicon-32.png"
 sips -z 192 192 "$SRC/icon_256x256@1x.png" --out "$OUT/icon-192.png"        >/dev/null
 sips -z 180 180 "$SRC/icon_256x256@1x.png" --out "$OUT/apple-touch-icon.png" >/dev/null
@@ -28,4 +29,4 @@ for size, data in zip(sizes, images):
 open(out, 'wb').write(header + entries + blobs)
 EOF
 
-echo "wrote $OUT/{favicon.ico,favicon-32.png,icon-192.png,icon-512.png,apple-touch-icon.png}"
+echo "wrote $OUT/{favicon.ico,favicon-32.png,icon-192.png,icon-256.png,icon-512.png,apple-touch-icon.png}"

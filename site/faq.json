@@ -41,7 +41,7 @@
   },
   {
     "question": "How do I update PortDrop?",
-    "answer": "PortDrop checks for a new release once a day and offers to install it. Choose ⚙︎ → <strong>Check for Updates…</strong> to check right now. If you installed with Homebrew, <code>brew upgrade portdrop</code> works too."
+    "answer": "PortDrop checks for a new release once a day and offers to install it. Choose ⚙︎ → <strong>Check for Updates…</strong> to check right now. If you installed with Homebrew, <code>brew upgrade --cask portdrop</code> works too."
   },
   {
     "question": "How do I uninstall PortDrop?",

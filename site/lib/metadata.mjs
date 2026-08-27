@@ -91,6 +91,6 @@ ${site.description}
 
 ## Privacy
 
-No analytics, telemetry, or accounts. The only network traffic is the local HTTP probe to 127.0.0.1 / ::1 and a once-a-day update check (Sparkle), which can be turned off. The website sets no cookies and loads nothing from third parties.
+No analytics, telemetry, or accounts. The only network traffic is the local HTTP probe to 127.0.0.1 / ::1 and a once-a-day update check (Sparkle), which can be turned off. The website sets no cookies and runs no analytics.
 `;
 }

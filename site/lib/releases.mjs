@@ -10,6 +10,12 @@ export function formatDate(iso) {
   return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
 }
 
+// GitHub's --generate-notes bodies render an <h2>What's Changed</h2>; demote every heading by one
+// level so it never collides with the release title, which is already an <h2> in the page.
+export function demoteHeadings(html) {
+  return html.replace(/<(\/?)h([1-6])\b/gi, (_, slash, n) => `<${slash}h${Math.min(6, Number(n) + 1)}`);
+}
+
 // Shapes a GitHub Releases API object into what the templates need. `notesHtml` is the release body
 // already rendered by GitHub's markdown API.
 export function normalizeRelease(release, notesHtml) {
@@ -26,7 +32,7 @@ export function normalizeRelease(release, notesHtml) {
     publishedAt: release.published_at,
     date: release.published_at.slice(0, 10),
     dateLabel: formatDate(release.published_at),
-    notesHtml: notesHtml?.trim() || '<p>No notes for this release.</p>',
+    notesHtml: demoteHeadings(notesHtml?.trim() || '<p>No notes for this release.</p>'),
     dmg: dmg ? { url: dmg.browser_download_url, size: dmg.size, sizeLabel: formatBytes(dmg.size) } : null,
     sha256Url: sha ? sha.browser_download_url : null,
   };

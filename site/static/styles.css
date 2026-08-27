@@ -101,7 +101,7 @@ main > section:first-child { border-top: 0; }
   color: var(--text); background: var(--surface); border: 1px solid var(--border); border-left: 0; border-radius: 0 10px 10px 0;
 }
 .cmd button:hover { background: var(--code-bg); }
-.cmd pre:last-child { border-radius: 10px; }
+.cmd pre:has(+ button[hidden]) { border-radius: 10px; }
 
 .features { list-style: none; padding: 0; margin: 1.5rem 0 0; display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
 .features li { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.1rem 1.2rem; }
@@ -132,12 +132,13 @@ main > section:first-child { border-top: 0; }
   font-size: .72rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #fff;
   background: linear-gradient(135deg, var(--button-a), var(--button-b));
 }
-.badge-pre { background: var(--muted); }
+.badge-pre { background: var(--muted); color: var(--bg); }
 .notes { overflow-x: auto; }
 .notes > :first-child { margin-top: 0; }
 .notes ul, .notes ol { padding-left: 1.3rem; }
 .notes li { margin-bottom: .25rem; }
 .notes tt { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+.notes h3, .notes h4, .notes h5, .notes h6 { font-size: 1.05rem; margin: 1rem 0 .4rem; }
 .assets { display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; margin: 1rem 0 0; padding-top: .9rem; border-top: 1px solid var(--border); }
 
 .hero-404 { display: block; text-align: center; padding: 4rem 0; }

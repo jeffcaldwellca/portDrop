@@ -1,6 +1,6 @@
 <section class="hero" aria-labelledby="hero-h">
   <div class="hero-text">
-    <img class="app-icon" src="{{root}}/icon-512.png" width="128" height="128" alt="">
+    <img class="app-icon" src="{{root}}/icon-256.png" width="128" height="128" alt="">
     <h1 id="hero-h">{{site.name}}</h1>
     <p class="tagline">{{site.tagline}}</p>
     <p class="lede">A free macOS menu-bar app that shows every process listening on a local TCP port — with the app's real icon, the owner, the PID, and a link straight to the service. Search it, open it, or kill it.</p>
@@ -8,7 +8,7 @@
       <a class="button" href="{{latest.dmg.url}}">Download PortDrop {{latest.version}} for macOS</a>
       <span class="muted small">{{latest.dmg.sizeLabel}} · <a href="{{latest.sha256Url}}">SHA-256</a> · <a href="{{root}}/releases/">what's new</a></span>
     </p>
-    <div class="cmd"><pre><code>{{site.homebrew.command}}</code></pre><button type="button" data-copy="{{site.homebrew.command}}" hidden>Copy</button></div>
+    <div class="cmd"><pre><code>{{site.homebrew.command}}</code></pre><button type="button" data-copy="{{site.homebrew.command}}" aria-live="polite" hidden>Copy</button></div>
     <p class="muted small">Requires {{site.minimumOS}} or later. Signed with an Apple Developer ID and notarized.</p>
   </div>
   <figure class="hero-shot">
@@ -43,8 +43,8 @@
   <div class="cols">
     <div>
       <h3>With Homebrew</h3>
-      <div class="cmd"><pre><code>{{site.homebrew.command}}</code></pre><button type="button" data-copy="{{site.homebrew.command}}" hidden>Copy</button></div>
-      <p>Later, <code>brew upgrade {{site.homebrew.cask}}</code> updates it — or let PortDrop update itself.</p>
+      <div class="cmd"><pre><code>{{site.homebrew.command}}</code></pre><button type="button" data-copy="{{site.homebrew.command}}" aria-live="polite" hidden>Copy</button></div>
+      <p>Later, <code>brew upgrade --cask {{site.homebrew.cask}}</code> updates it — or let PortDrop update itself.</p>
     </div>
     <div>
       <h3>With the DMG</h3>
@@ -69,7 +69,7 @@
 <section id="privacy" aria-labelledby="privacy-h">
   <h2 id="privacy-h">Privacy</h2>
   <p>Nothing leaves your Mac. PortDrop has no analytics, telemetry, crash reporting, or accounts. Its only network activity is the local HTTP probe described above and a once-a-day check of the GitHub release feed for updates, which you can turn off in the ⚙︎ menu.</p>
-  <p>This website is static, sets no cookies, and loads nothing from third parties.</p>
+  <p>This website is static, sets no cookies, and runs no analytics.</p>
 </section>
 
 <section id="faq" aria-labelledby="faq-h">

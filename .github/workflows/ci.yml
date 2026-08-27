@@ -36,3 +36,13 @@ jobs:
             -derivedDataPath build/DerivedData \
             CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY=- DEVELOPMENT_TEAM= \
             | xcbeautify --renderer github-actions
+
+  site:
+    name: Website tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - run: node --test site/test/*.test.mjs

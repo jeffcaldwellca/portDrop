@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { formatBytes, formatDate, normalizeRelease, pickLatest, releaseToHtml, releasesToHtml } from '../lib/releases.mjs';
+import { formatBytes, formatDate, normalizeRelease, pickLatest, releaseToHtml, releasesToHtml, demoteHeadings } from '../lib/releases.mjs';
 
 const asset = (name, size) => ({ name, size, browser_download_url: `https://github.com/jeffcaldwellca/portDrop/releases/download/v1.0.1/${name}`, content_type: 'application/octet-stream' });
 const API_RELEASE = {
@@ -18,6 +18,15 @@ test('formatBytes picks a sensible unit', () => {
 
 test('formatDate is a long en-US date in UTC', () => {
   assert.equal(formatDate('2026-08-25T23:59:59Z'), 'August 25, 2026');
+});
+
+test('demoteHeadings shifts every heading down one level and caps at h6', () => {
+  assert.equal(demoteHeadings('<h2 dir="auto">What\'s Changed</h2><h6>x</h6>'), '<h3 dir="auto">What\'s Changed</h3><h6>x</h6>');
+});
+
+test('normalizeRelease demotes headings in the rendered notes', () => {
+  const r = normalizeRelease(API_RELEASE, '<h2 dir="auto">What\'s Changed</h2><ul><li>fix</li></ul>');
+  assert.equal(r.notesHtml, '<h3 dir="auto">What\'s Changed</h3><ul><li>fix</li></ul>');
 });
 
 test('normalizeRelease extracts version, date, DMG and checksum assets', () => {

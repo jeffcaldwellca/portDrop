@@ -81,6 +81,17 @@ xcodebuild -scheme PortDrop -destination 'platform=macOS' test
 
 The app is intentionally **not sandboxed** — `lsof` and `kill` need direct process access. The `PortDrop` scheme runs the unit tests in `PortDropTests`; CI runs the same command with ad-hoc signing on every push and pull request.
 
+## Website
+
+[www.jeffcaldwell.ca/portDrop](https://www.jeffcaldwell.ca/portDrop/) is built from `site/` by a zero-dependency Node script and deployed by the [Website workflow](.github/workflows/pages.yml) — on every push that touches `site/`, after each release, and on demand. The releases page and the "latest version" links come from the GitHub Releases API at build time.
+
+```sh
+node --test site/test/*.test.mjs                       # unit + integration tests (offline)
+node site/build.mjs && python3 -m http.server -d _site 8080   # → http://localhost:8080/
+Scripts/make-site-icons.sh                             # regenerate favicons from the app icon
+swiftc -O Scripts/make-og-image.swift -o build/make-og-image && build/make-og-image site/static/og-image.png
+```
+
 ## Cutting a release
 
 Releases are built, signed, notarized, and published by the [Release workflow](.github/workflows/release.yml) on a GitHub-hosted macOS 26 runner. The git tag is the version:

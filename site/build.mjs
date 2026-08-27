@@ -75,6 +75,7 @@ export async function build({
     },
   ];
 
+  if ([REPO_DIR, SITE_DIR, resolve('/')].includes(resolve(outDir))) throw new Error(`Refusing to clear ${outDir}`);
   await rm(outDir, { recursive: true, force: true });
   await mkdir(join(outDir, 'releases'), { recursive: true });
   await mkdir(join(outDir, 'assets'), { recursive: true });
