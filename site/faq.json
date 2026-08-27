@@ -1,0 +1,50 @@
+[
+  {
+    "question": "How do I find what's using a port on my Mac?",
+    "answer": "Click the PortDrop icon in the menu bar. The panel lists every process that is listening on a local TCP port, with the app's icon, name, owner, PID, and port number. Type a port number in the search field to jump straight to it. Under the hood PortDrop runs <code>lsof -iTCP -sTCP:LISTEN</code> every few seconds so you never have to."
+  },
+  {
+    "question": "How do I kill the process on port 3000 (or any other port) on macOS?",
+    "answer": "Open PortDrop, search for <code>3000</code>, and click the ⊗ button on that row. It turns into a red <strong>Confirm</strong> button; click it to send <code>SIGTERM</code>. Hold <kbd>⌥ Option</kbd> while confirming to send <code>SIGKILL</code> instead. If the process belongs to another user or to root, macOS asks for your administrator password first."
+  },
+  {
+    "question": "Is PortDrop safe to install? Is it notarized?",
+    "answer": "Yes. Every release is signed with an Apple Developer ID certificate and notarized by Apple, so it opens without Gatekeeper warnings. Each download comes with a SHA-256 checksum you can verify with <code>shasum -a 256 -c</code>, and the source code is available on <a href=\"https://github.com/jeffcaldwellca/portDrop\">GitHub</a>."
+  },
+  {
+    "question": "Why does PortDrop ask for my password?",
+    "answer": "Only when you kill a process that belongs to another user or to root. Your own processes are terminated directly. For anything else PortDrop uses the standard macOS administrator-privileges dialog, rather than failing silently or installing a background helper with elevated rights."
+  },
+  {
+    "question": "What's the difference between Kill and Force Kill?",
+    "answer": "<strong>Kill</strong> sends <code>SIGTERM</code>, which asks the process to shut down cleanly. <strong>Force Kill</strong> sends <code>SIGKILL</code>, which the process cannot catch or ignore. Use Force Kill — hold <kbd>⌥ Option</kbd> while confirming, or pick it from the right-click menu — when a process ignores a normal kill."
+  },
+  {
+    "question": "Does PortDrop show UDP ports or outbound connections?",
+    "answer": "No. PortDrop lists <em>listening TCP ports</em> only: the servers, dev tools, and daemons waiting for connections on your Mac. UDP sockets and established outbound connections are out of scope."
+  },
+  {
+    "question": "Which macOS versions does PortDrop support?",
+    "answer": "PortDrop requires macOS 26 Tahoe or later. It is built with Swift 6 and SwiftUI."
+  },
+  {
+    "question": "Does PortDrop send any data anywhere?",
+    "answer": "No. PortDrop has no analytics, telemetry, or accounts. The only network requests it makes are an HTTP <code>HEAD</code> probe to <code>127.0.0.1</code> and <code>::1</code> to detect web servers on unknown ports, and a once-a-day check of the GitHub release feed for updates, which you can turn off."
+  },
+  {
+    "question": "Is PortDrop free?",
+    "answer": "Yes. PortDrop is free to download and use, and the source code is available on <a href=\"https://github.com/jeffcaldwellca/portDrop\">GitHub</a>."
+  },
+  {
+    "question": "Where is the Dock icon or window?",
+    "answer": "There isn't one. PortDrop is a menu-bar utility: it sits next to your clock as the PortDrop mark plus the number of listening ports. Click it to open the panel. To keep it around, turn on <strong>Launch at Login</strong> from the ⚙︎ menu."
+  },
+  {
+    "question": "How do I update PortDrop?",
+    "answer": "PortDrop checks for a new release once a day and offers to install it. Choose ⚙︎ → <strong>Check for Updates…</strong> to check right now. If you installed with Homebrew, <code>brew upgrade portdrop</code> works too."
+  },
+  {
+    "question": "How do I uninstall PortDrop?",
+    "answer": "Turn off <strong>Launch at Login</strong> if it was on, quit PortDrop from the ⚙︎ menu, then drag <strong>PortDrop.app</strong> from Applications to the Trash. Homebrew users can run <code>brew uninstall --cask portdrop</code> instead."
+  }
+]
