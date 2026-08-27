@@ -46,7 +46,7 @@ Then launch PortDrop from Applications or Spotlight. It lives in the menu bar �
 
 The app is signed with a Developer ID and notarized by Apple, so it opens without Gatekeeper warnings. Turn on **Launch at Login** from the ⚙︎ menu if you want it around permanently.
 
-PortDrop keeps itself current with [Sparkle](https://sparkle-project.org): it checks for a new release once a day and offers to install it (⚙︎ → **Check for Updates…** to check now, or turn the automatic check off there). Homebrew installs update the same way; `brew upgrade` also works.
+PortDrop keeps itself current with [Sparkle](https://sparkle-project.org): it checks for a new release once a day and offers to install it (⚙︎ → **Check for Updates…** to check now, or turn the automatic check off there). Homebrew installs update the same way; `brew upgrade --cask portdrop` also works.
 
 **Requires macOS 26 Tahoe or later.** To verify a download: `shasum -a 256 -c PortDrop-<version>.dmg.sha256`.
 
@@ -81,87 +81,4 @@ xcodebuild -scheme PortDrop -destination 'platform=macOS' test
 
 The app is intentionally **not sandboxed** — `lsof` and `kill` need direct process access. The `PortDrop` scheme runs the unit tests in `PortDropTests`; CI runs the same command with ad-hoc signing on every push and pull request.
 
-## Website
-
-[www.jeffcaldwell.ca/portDrop](https://www.jeffcaldwell.ca/portDrop/) is built from `site/` by a zero-dependency Node script and deployed by the [Website workflow](.github/workflows/pages.yml) — on every push that touches `site/`, after each release, and on demand. The releases page and the "latest version" links come from the GitHub Releases API at build time.
-
-```sh
-node --test site/test/*.test.mjs                       # unit + integration tests (offline)
-node site/build.mjs && python3 -m http.server -d _site 8080   # → http://localhost:8080/
-Scripts/make-site-icons.sh                             # regenerate favicons from the app icon
-swiftc -O Scripts/make-og-image.swift -o build/make-og-image && build/make-og-image site/static/og-image.png
-```
-
-## Cutting a release
-
-Releases are built, signed, notarized, and published by the [Release workflow](.github/workflows/release.yml) on a GitHub-hosted macOS 26 runner. The git tag is the version:
-
-```sh
-git tag v1.2.3
-git push origin v1.2.3
-```
-
-That produces a GitHub Release with `PortDrop-1.2.3.dmg`, its `.sha256`, `PortDrop-1.2.3.zip` (the Sparkle update archive), `appcast.xml` (the Sparkle feed, with the release notes embedded — the app reads it via `releases/latest/download/appcast.xml`), and auto-generated notes; then it bumps the [Homebrew cask](https://github.com/jeffcaldwellca/homebrew-tap/blob/main/Casks/portdrop.rb) to match. `MARKETING_VERSION` comes from the tag; `CURRENT_PROJECT_VERSION` (the build number) is the workflow run number, so it always increases.
-
-To try the pipeline without publishing anything, open **Actions → Release → Run workflow**: it builds, signs, and notarizes exactly the same way but uploads the DMG as a workflow artifact instead of creating a release.
-
-The workflow needs five repository secrets (Settings → Secrets and variables → Actions):
-
-| Secret | Value |
-| --- | --- |
-| `MACOS_CERTIFICATE` | Your **Developer ID Application** certificate *and* private key, exported from Keychain Access as a `.p12`, then `base64 -i cert.p12` |
-| `MACOS_CERTIFICATE_PASSWORD` | The password you chose when exporting the `.p12` |
-| `APPLE_API_KEY_ID` | Key ID of an App Store Connect API key (Users and Access → Integrations → Team Keys; the *Developer* role is enough) |
-| `APPLE_API_ISSUER` | Issuer ID shown on the same page |
-| `APPLE_API_KEY_P8` | Full contents of the downloaded `AuthKey_<KEY_ID>.p8` |
-| `SPARKLE_PRIVATE_KEY` | The Sparkle EdDSA private key, exported with `generate_keys -x` (from the [Sparkle tools](https://github.com/sparkle-project/Sparkle/releases)). Its public half is `SPARKLE_PUBLIC_ED_KEY` in `project.yml`. |
-| `TAP_TOKEN` *(optional)* | A GitHub token with **Contents: write** on `jeffcaldwellca/homebrew-tap`. Without it the release still publishes; the cask just isn't bumped (the workflow warns). |
-
-### Releasing locally
-
-The same script the workflow runs also works on your Mac. With the same App Store Connect key (the `.p8` is looked up at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8` unless `APPLE_API_KEY_PATH` says otherwise):
-
-```sh
-APPLE_API_KEY_ID=<key-id> APPLE_API_ISSUER=<issuer-id> Scripts/release.sh     # → dist/PortDrop-<version>.dmg (+ .sha256)
-MARKETING_VERSION=1.2.3 APPLE_API_KEY_ID=… APPLE_API_ISSUER=… Scripts/release.sh   # override the version from project.yml
-```
-
-Without an API key, the script falls back to a `notarytool` keychain profile named `PortDrop` (one-time setup with an [app-specific password](https://account.apple.com)):
-
-```sh
-xcrun notarytool store-credentials PortDrop --apple-id <apple-id> --team-id 88ZPCYS252
-Scripts/release.sh
-```
-
-The script notarizes and staples the app first, so the copy inside the DMG carries its own ticket, then builds the DMG and notarizes and staples that as well. It also leaves `dist/PortDrop-<version>.zip` for Sparkle; `Scripts/make-appcast.sh <zip> <private-key-file>` turns that into a signed `dist/appcast.xml`. To build just the drag-to-install DMG from an already-exported app:
-
-```sh
-Scripts/make-dmg.sh build/export/PortDrop.app dist/PortDrop.dmg
-```
-
-The DMG has a custom background (generated by `Scripts/make-dmg-background.swift`), the app and an **Applications** shortcut side by side, and the app icon as the volume icon.
-
-## Branding
-
-`Branding/PortDropIcon.png` is the single source of truth for the PortDrop mark. Everything else is derived from it:
-
-```sh
-swift Scripts/make-branding.swift      # → AppIcon.appiconset (10 sizes) + MenuBarIcon.imageset (1x/2x)
-```
-
-- **AppIcon** — the mark in white on the blue→purple brand squircle, on Apple's macOS icon grid. Also becomes the DMG's volume icon.
-- **MenuBarIcon** — the bare mark as a 15×16 pt template image, so it inverts correctly in dark menu bars. `StatusBarLabel` composites it with the port count into one image.
-- **DMG background** — `Scripts/make-dmg-background.swift` locks the mark up beside the wordmark.
-
-Re-run the script after replacing the source artwork, then `xcodegen generate` and rebuild.
-
-## Debug snapshot
-
-The app can render its panel to a PNG and exit — handy for bug reports and for the screenshots above:
-
-```sh
-PORTDROP_SNAPSHOT=/tmp/panel.png PortDrop.app/Contents/MacOS/PortDrop
-PORTDROP_SNAPSHOT=/tmp/panel-dark.png PORTDROP_SNAPSHOT_APPEARANCE=dark PORTDROP_SNAPSHOT_SCALE=2 PortDrop.app/Contents/MacOS/PortDrop
-```
-
-`PORTDROP_SNAPSHOT_APPEARANCE` is `light` (default) or `dark`; `PORTDROP_SNAPSHOT_SCALE` defaults to the screen's backing scale.
+Release, website, and branding workflows are documented in [docs/MAINTAINING.md](docs/MAINTAINING.md).
