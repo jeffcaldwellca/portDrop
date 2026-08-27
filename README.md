@@ -17,6 +17,12 @@
 </p>
 
 <p align="center">
+  <a href="https://jeffcaldwellca.github.io/portDrop/"><b>Website</b></a> ·
+  <a href="https://jeffcaldwellca.github.io/portDrop/releases/">Releases</a> ·
+  <a href="https://github.com/jeffcaldwellca/portDrop/releases/latest">Download</a>
+</p>
+
+<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/panel-dark.png">
     <img src="docs/screenshots/panel-light.png" width="420" alt="The PortDrop panel: a searchable list of listening ports, each with the owning app's icon, a protocol chip, owner and PID, the port number, and Open and Kill buttons">

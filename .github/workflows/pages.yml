@@ -1,0 +1,61 @@
+name: Website
+
+# Builds site/ into _site/ and deploys it to GitHub Pages (Settings → Pages → Source: "GitHub Actions").
+# Triggers: site changes on main; every completed Release workflow run (GitHub does not fire `release`
+# events for releases the Release workflow creates with GITHUB_TOKEN, so `workflow_run` is what keeps
+# the site current); releases published by hand; and manual dispatch.
+
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'docs/screenshots/**', '.github/workflows/pages.yml']
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build site
+    runs-on: ubuntu-latest
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Test
+        run: node --test site/test/*.test.mjs
+
+      - name: Build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node site/build.mjs
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
