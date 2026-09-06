@@ -70,7 +70,7 @@ ${site.description}
 
 - Website: ${site.baseUrl}
 - Latest version: ${latest.version} (${latest.dateLabel})
-- Download (DMG, signed and notarized): ${latest.dmg.url}
+- Download (DMG): ${latest.dmg.url}
 - SHA-256 checksum: ${latest.sha256Url}
 - Homebrew: \`${site.homebrew.command}\`
 - Requires: ${site.minimumOS} or later

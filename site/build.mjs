@@ -55,7 +55,7 @@ export async function build({
   const pages = [
     {
       file: 'index.html', root: '.', robots: ROBOTS_INDEX, canonical: site.baseUrl,
-      title: `${site.name} — see and kill whatever is listening on your Mac's ports`,
+      title: `${site.name} — see what's using every port on your Mac`,
       description: site.description,
       jsonld: buildJsonLd({ site, latest, first, page: 'home', faq }),
       body: await read('pages', 'index.html'), extra: { faq: faqToHtml(faq) },

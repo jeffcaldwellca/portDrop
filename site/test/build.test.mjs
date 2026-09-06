@@ -61,12 +61,13 @@ test('build writes a complete site from stubbed release data', async () => {
       assert.doesNotMatch(html, /\{\{/, `${name} has an unresolved placeholder`);
       assert.match(html, /<html lang="en">/);
       assert.doesNotMatch(html, /open source|MIT licen|licen[cs]e/i, `${name} mentions licensing`);
+      assert.doesNotMatch(html, /notariz|Developer ID|Gatekeeper|hardened runtime/i, `${name} talks about code signing`);
       assert.doesNotMatch(html, /<script src=|<link rel="stylesheet" href="https?:|https:\/\/fonts\.|googletagmanager|google-analytics|plausible\.io/i, `${name} loads third-party resources`);
       assert.equal((html.match(/<h1[\s>]/g) || []).length, 1, `${name} must have exactly one h1`);
     }
 
     // Landing page: title/canonical/OG, latest release stamped in, JSON-LD parses with the expected types.
-    assert.match(index, /<title>PortDrop — see and kill whatever is listening on your Mac&#39;s ports<\/title>/);
+    assert.match(index, /<title>PortDrop — see what&#39;s using every port on your Mac<\/title>/);
     assert.match(index, /<link rel="canonical" href="https:\/\/www\.jeffcaldwell\.ca\/portDrop\/">/);
     assert.match(index, /<meta property="og:image" content="https:\/\/www\.jeffcaldwell\.ca\/portDrop\/og-image\.png">/);
     assert.match(index, /Download PortDrop 1\.0\.1 for macOS/);
