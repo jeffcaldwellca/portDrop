@@ -6,6 +6,11 @@ struct PortRowView: View {
     let service: ServiceInfo
     let presentation: ProcessPresentation
     let onKill: (_ force: Bool) async throws -> Void
+    /// Set when this port is published by a Docker container; the row then names the service and offers down/stop.
+    var docker: DockerBinding? = nil
+    var onDocker: (DockerAction) async throws -> Void = { _ in }
+    /// Containers in the compose project behind `docker`, for the "Down project" menu label.
+    var projectContainerCount: Int = 0
 
     /// Wide enough for "65535" in bold monospaced body text.
     static let portColumnWidth: CGFloat = 52
@@ -24,19 +29,24 @@ struct PortRowView: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(nsImage: presentation.icon)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 28, height: 28)
-                .foregroundStyle(service.kind.tint)
+            Group {
+                if docker != nil {
+                    Image(systemName: "shippingbox.fill").resizable().foregroundStyle(DockerChip.tint)
+                } else {
+                    Image(nsImage: presentation.icon).resizable().foregroundStyle(service.kind.tint)
+                }
+            }
+            .aspectRatio(contentMode: .fit)
+            .frame(width: 28, height: 28)
 
             VStack(alignment: .leading, spacing: 3) {
-                Text(presentation.displayName)
+                Text(docker?.displayName ?? presentation.displayName)
                     .font(.headline)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 HStack(spacing: 6) {
                     KindChip(kind: service.kind)
+                    if docker != nil { DockerChip() }
                     Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -67,8 +77,10 @@ struct PortRowView: View {
                 .disabled(service.url == nil)
                 .accessibilityHidden(service.url == nil)
 
-                killButton
-                    .frame(minWidth: Self.killColumnWidth, alignment: .trailing)
+                Group {
+                    if docker != nil { dockerButton } else { killButton }
+                }
+                .frame(minWidth: Self.killColumnWidth, alignment: .trailing)
             }
         }
         .padding(.vertical, 8)
@@ -81,13 +93,19 @@ struct PortRowView: View {
     }
 
     private var subtitle: String {
-        "\(port.user) · PID \(port.pid)"
+        // The compose project is the useful context; the container name rarely fits and is in the tooltip.
+        docker?.container.project ?? "\(port.user) · PID \(port.pid)"
     }
 
     private var bindDescription: String {
         let addr = port.bindAddress == "*" ? "all interfaces" : port.bindAddress
         let versions = port.ipVersions.contains(.v4) && port.ipVersions.contains(.v6) ? "IPv4 + IPv6" : (port.ipVersions.contains(.v6) ? "IPv6" : "IPv4")
-        return "\(presentation.executablePath ?? port.processName)\nListening on \(addr) (\(versions))"
+        var text = "\(presentation.executablePath ?? port.processName)\nListening on \(addr) (\(versions))"
+        if let docker {
+            text += "\nContainer \(docker.container.name) (\(docker.container.id.prefix(12))), port \(docker.containerPort)"
+            text += "\nvia \(port.processName) · PID \(port.pid)"
+        }
+        return text
     }
 
     @ViewBuilder private var killButton: some View {
@@ -112,7 +130,40 @@ struct PortRowView: View {
         }
     }
 
+    @ViewBuilder private var dockerButton: some View {
+        if let docker {
+            let action = DockerAction.primary(for: docker)
+            switch killState {
+            case .idle, .failed:
+                Button { beginConfirm() } label: {
+                    Image(systemName: "shippingbox.and.arrow.backward")
+                }
+                .buttonStyle(.accessoryBar)
+                .accessibilityLabel("\(action.verb) \(docker.displayName)")
+                .help("\(action.verb) \(docker.displayName) (click again to confirm; right-click for the whole project)")
+            case .confirming:
+                Button { performDocker(action) } label: {
+                    Text(action.verb).font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(.red)
+                .accessibilityLabel("Confirm \(action.verb.lowercased())")
+            case .killing:
+                ProgressView().controlSize(.small)
+            }
+        }
+    }
+
     @ViewBuilder private var contextMenu: some View {
+        if let docker {
+            let primary = DockerAction.primary(for: docker)
+            Button("\(primary.verb) \(docker.displayName)") { performDocker(primary) }
+            if let project = DockerAction.project(for: docker), case .downProject(let name) = project {
+                Button("Down project \(name) (\(projectContainerCount) containers)") { performDocker(project) }
+            }
+            Divider()
+        }
         if let url = service.url {
             Button("Open \(url.absoluteString)") { NSWorkspace.shared.open(url) }
             Button("Copy URL") { copy(url.absoluteString) }
@@ -123,8 +174,13 @@ struct PortRowView: View {
             Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
         }
         Divider()
-        Button("Kill (SIGTERM)") { performKill(force: false) }
-        Button("Force Kill (SIGKILL)") { performKill(force: true) }
+        if docker != nil {
+            Button("Kill Docker backend (PID \(port.pid))") { performKill(force: false) }
+            Button("Force Kill Docker backend") { performKill(force: true) }
+        } else {
+            Button("Kill (SIGTERM)") { performKill(force: false) }
+            Button("Force Kill (SIGKILL)") { performKill(force: true) }
+        }
     }
 
     private func copy(_ s: String) {
@@ -139,6 +195,21 @@ struct PortRowView: View {
             try? await Task.sleep(for: .seconds(3))
             guard !Task.isCancelled else { return }
             withAnimation(.snappy) { if killState == .confirming { killState = .idle } }
+        }
+    }
+
+    private func performDocker(_ action: DockerAction) {
+        revertTask?.cancel()
+        withAnimation(.snappy) { killState = .killing }
+        Task {
+            do {
+                try await onDocker(action)
+                killState = .idle
+            } catch {
+                withAnimation(.snappy) { killState = .failed(error.localizedDescription) }
+                try? await Task.sleep(for: .seconds(4))
+                if case .failed = killState { withAnimation(.snappy) { killState = .idle } }
+            }
         }
     }
 

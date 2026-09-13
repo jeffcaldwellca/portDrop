@@ -54,7 +54,7 @@ final class PortMonitor {
     }
 
     func service(for port: ListeningPort) -> ServiceInfo {
-        services[port.id] ?? ServiceClassifier.classify(port: port.port, processName: port.processName, bindAddress: port.bindAddress)
+        services[port.id] ?? ServiceClassifier.classify(port, docker: dockerBinding(for: port))
     }
 
     /// A row is Docker-backed only when its process is the Docker host *and* a container publishes that port,
@@ -94,14 +94,15 @@ final class PortMonitor {
         defer { isScanning = false }
         do {
             let scanned = try await PortScanner.scan()
-            let classified = await classify(scanned)
             let containers = scanned.contains { DockerInspector.isHostProcess($0.processName) } ? await DockerInspector.scan() : []
+            let bindings = DockerInspector.bindings(from: containers)
+            let classified = await classify(scanned, bindings: bindings)
             let fresh = Self.newIDs(old: ports, new: scanned)
             if ports != scanned { ports = scanned }          // avoid redraws (and label re-renders) when nothing changed
             if services != classified { services = classified }
             if dockerContainers != containers {
                 dockerContainers = containers
-                docker = DockerInspector.bindings(from: containers)
+                docker = bindings
             }
             lastError = nil
             resolver.evict(pidsNotIn: Set(scanned.map(\.pid)))
@@ -124,11 +125,12 @@ final class PortMonitor {
         Set(new.map(\.id)).subtracting(old.map(\.id))
     }
 
-    private func classify(_ scanned: [ListeningPort]) async -> [String: ServiceInfo] {
+    private func classify(_ scanned: [ListeningPort], bindings: [UInt16: DockerBinding]) async -> [String: ServiceInfo] {
         var out: [String: ServiceInfo] = [:]
         var toProbe: [ListeningPort] = []
         for p in scanned {
-            let info = ServiceClassifier.classify(port: p.port, processName: p.processName, bindAddress: p.bindAddress)
+            let binding = DockerInspector.isHostProcess(p.processName) ? bindings[p.port] : nil
+            let info = ServiceClassifier.classify(p, docker: binding)
             if info.kind == .tcp {
                 if let cached = probeCache[p.id] {
                     out[p.id] = cached ? ServiceClassifier.httpInfo(port: p.port, bindAddress: p.bindAddress) : info

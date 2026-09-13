@@ -5,6 +5,8 @@ struct KindChip: View {
     var body: some View {
         Text(kind.label)
             .font(.caption2.weight(.semibold))
+            .lineLimit(1)
+            .fixedSize()
             .foregroundStyle(kind.tint)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)

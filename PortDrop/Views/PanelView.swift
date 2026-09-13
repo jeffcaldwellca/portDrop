@@ -102,11 +102,15 @@ struct PanelView: View {
                 VStack(spacing: 2) {
                     ForEach(monitor.filteredPorts) { port in
                         let service = monitor.service(for: port)
+                        let docker = monitor.dockerBinding(for: port)
                         PortRowView(
                             port: port,
                             service: service,
                             presentation: monitor.resolver.presentation(for: port, kind: service.kind),
-                            onKill: { force in try await monitor.kill(port, force: force) }
+                            onKill: { force in try await monitor.kill(port, force: force) },
+                            docker: docker,
+                            onDocker: { action in try await monitor.perform(action) },
+                            projectContainerCount: docker?.container.project.map(monitor.projectContainerCount) ?? 0
                         )
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                     }

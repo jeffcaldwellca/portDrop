@@ -13,4 +13,22 @@ final class ServiceClassifierTests: XCTestCase {
     func testUnknown() { XCTAssertEqual(c(9999), ServiceInfo(kind: .tcp, url: nil)) }
     func testSpecificBind() { XCTAssertEqual(c(3000, "x", "192.168.1.5").url?.host, "192.168.1.5") }
     func testLoopbackV6() { XCTAssertEqual(ServiceClassifier.host(for: "::1"), "localhost") }
+    func testSSHDOnDefaultPortOmitsPort() { XCTAssertEqual(c(22, "sshd").url?.absoluteString, "ssh://localhost") }
+    func testSSHDOnOtherPortKeepsPort() { XCTAssertEqual(c(2222, "sshd").url?.absoluteString, "ssh://localhost:2222") }
+
+    func d(_ host: UInt16, _ container: UInt16, service: String? = "svc", name: String = "proj-svc-1") -> ServiceInfo {
+        let c = DockerContainer(id: "id", name: name, project: "proj", service: service, ports: [.init(hostPort: host, containerPort: container)])
+        let p = ListeningPort(pid: 9, processName: "com.docker.backend", user: "u", port: host, bindAddress: "*", ipVersions: [.v6])
+        return ServiceClassifier.classify(p, docker: DockerBinding(container: c, containerPort: container))
+    }
+    func testDockerContainerPortDecidesKind() {
+        XCTAssertEqual(d(5433, 5432), ServiceInfo(kind: .postgres, url: URL(string: "postgresql://localhost:5433")))
+        XCTAssertEqual(d(18081, 80), ServiceInfo(kind: .http, url: URL(string: "http://localhost:18081")))
+        XCTAssertEqual(d(2121, 21).url?.absoluteString, "ftp://localhost:2121")
+    }
+    func testDockerServiceNameDecidesKind() {
+        XCTAssertEqual(d(9999, 9999, service: "postgres").kind, .postgres)
+        XCTAssertEqual(d(9999, 9999, service: nil, name: "redis").kind, .redis)
+    }
+    func testDockerUnknownStaysTCP() { XCTAssertEqual(d(9999, 9999).kind, .tcp) }
 }
