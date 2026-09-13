@@ -20,6 +20,10 @@
     "answer": "<strong>Kill</strong> sends <code>SIGTERM</code>, which asks the process to shut down cleanly — that's the one you want almost every time. <strong>Force Kill</strong> sends <code>SIGKILL</code>, which a process cannot catch or ignore. Reach for it — hold <kbd>⌥ Option</kbd> while confirming, or pick it from the right-click menu — when something ignores a normal kill."
   },
   {
+    "question": "Does PortDrop work with Docker?",
+    "answer": "Yes. Docker Desktop and OrbStack publish every container port from one background process, so on its own the list would just say <code>com.docker.backend</code> over and over. PortDrop asks Docker which container is behind each port and shows the compose service name instead, with the project underneath. The button on those rows is <strong>Down</strong> rather than Kill: click, then Confirm, and PortDrop runs <code>docker compose down</code> for that one service. Right-click for <strong>Down project</strong> to take down everything in the project. Containers that aren't part of a compose project are stopped with <code>docker stop</code>. Volumes are never removed."
+  },
+  {
     "question": "Does PortDrop show UDP ports or outbound connections?",
     "answer": "No. PortDrop lists <em>listening TCP ports</em> only: the servers, dev tools, and daemons waiting for connections on your Mac. UDP sockets and established outbound connections are out of scope."
   },

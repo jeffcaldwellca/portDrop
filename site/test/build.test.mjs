@@ -79,7 +79,7 @@ test('build writes a complete site from stubbed release data', async () => {
     assert.deepEqual(ld['@graph'].map((n) => n['@type']), ['WebSite', 'SoftwareApplication', 'FAQPage']);
     assert.equal(ld['@graph'][1].softwareVersion, '1.0.1');
     assert.equal(ld['@graph'][1].datePublished, '2026-08-25');
-    assert.equal(ld['@graph'][2].mainEntity.length, 12);
+    assert.equal(ld['@graph'][2].mainEntity.length, 13);
 
     // Releases page: newest first, draft excluded, pre-release marked, only the latest badged, relative root.
     assert.match(releases, /<title>PortDrop releases and changelog<\/title>/);

@@ -85,7 +85,8 @@ ${site.description}
 - Shows the owning app's real icon, name, user, and PID next to the port number.
 - Detects HTTP, HTTPS, SSH, FTP, PostgreSQL, MySQL, Redis, MongoDB, VNC, SMB, and AFP by process name and well-known port, and probes unknown ports with an HTTP HEAD request so web servers get a clickable link.
 - Open launches the service URL in its default handler. Kill is two-step (click, then Confirm) and sends SIGTERM; holding Option sends SIGKILL. Killing another user's or root's process uses the standard macOS administrator dialog.
-- Search by port, process, user, or protocol; right-click for Copy URL / PID / host:port, Reveal in Finder, Kill, and Force Kill.
+- Docker-aware: ports published by Docker Desktop or OrbStack are labelled with the compose service (or container name) and project, and the button becomes Down, which runs \`docker compose down\` for that service; right-click to take down the whole project. Plain containers get \`docker stop\`; volumes are never removed.
+- Search by port, process, user, protocol, or Docker service name; right-click for Copy URL / PID / host:port, Reveal in Finder, Kill, and Force Kill.
 - Menu-bar badge with the number of listening ports, optional notification when a new port starts listening, Launch at Login.
 - Listening TCP ports only: no UDP, no outbound connections.
 

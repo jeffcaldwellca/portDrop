@@ -61,8 +61,9 @@ PortDrop keeps itself current with [Sparkle](https://sparkle-project.org): it ch
   2. Click **Confirm** → `SIGTERM`. Hold **⌥** while confirming for `SIGKILL`.
 
   If the process belongs to root or another user, PortDrop escalates to the standard macOS administrator-password dialog instead of failing silently.
-- **Search** by port, process, user, or protocol.
-- **Right-click** a row for Open, Copy URL / PID / host:port, Reveal in Finder, Kill, and Force Kill.
+- **Docker-aware.** Ports published by Docker Desktop or OrbStack all belong to one backend process, so PortDrop asks `docker ps` which container is behind each one and shows the compose service (or container name) instead, with a Docker chip and the project name. The service's own port decides the protocol, so a container's Postgres on 5433 still gets a `postgresql://` link. The ⊗ button becomes a **Down** button: click, then Confirm, and PortDrop runs `docker compose down <service>` (containers without a compose project get `docker stop`; volumes are never removed). Right-click for **Down project**, which takes down every container in the project, or to kill the Docker backend itself.
+- **Search** by port, process, user, protocol, or Docker service/project/container name.
+- **Right-click** a row for Open, Copy URL / PID / host:port, Reveal in Finder, Kill, and Force Kill (plus Down / Down project on Docker rows).
 - **Menu-bar badge**: the PortDrop mark plus the number of listening ports.
 - **Optional notification** when a new port starts listening.
 - **Launch at Login** via `SMAppService`.
@@ -79,6 +80,6 @@ open PortDrop.xcodeproj                                          # or, from the 
 xcodebuild -scheme PortDrop -destination 'platform=macOS' test
 ```
 
-The app is intentionally **not sandboxed** — `lsof` and `kill` need direct process access. The `PortDrop` scheme runs the unit tests in `PortDropTests`; CI runs the same command with ad-hoc signing on every push and pull request.
+The app is intentionally **not sandboxed** — `lsof` and `kill` need direct process access. The `PortDrop` scheme runs the unit tests in `PortDropTests`; CI runs the same command with ad-hoc signing on every push and pull request. The Docker integration test brings up a throwaway compose project and is skipped unless you pass `TEST_RUNNER_PORTDROP_DOCKER_E2E=1` to `xcodebuild test` with Docker running.
 
 Release, website, and branding workflows are documented in [docs/MAINTAINING.md](docs/MAINTAINING.md).

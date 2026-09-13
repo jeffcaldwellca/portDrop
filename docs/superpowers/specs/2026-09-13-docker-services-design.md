@@ -159,6 +159,17 @@ row button ──► DockerAction ──► DockerController.run ──► refre
   "can-railway · can-railway-postgres-1"; Down removes the container and the row
   disappears on the next refresh; project menu shows the correct count.
 
+## Changes made during implementation
+
+- The subtitle of a compose row is the project name only; the container name never fit at
+  420 pt and lives in the tooltip instead. Plain-container rows keep the `user · PID` subtitle.
+- `ServiceClassifier.classify` gained a `servicePort` parameter (the container-side port) and a
+  `classify(_:docker:)` overload that also passes the service name as the process name, so a
+  container's Postgres on host port 5433 is labelled Postgres with a `postgresql://localhost:5433`
+  link. URLs always use the host port.
+- `DockerIntegrationTests` runs the real compose lifecycle against a throwaway project when
+  `PORTDROP_DOCKER_E2E=1`; it is skipped otherwise.
+
 ## Out of scope
 
 - Restarting or `up`-ing services from PortDrop.
