@@ -140,7 +140,9 @@ struct PortRowView: View {
                 }
                 .buttonStyle(.accessoryBar)
                 .accessibilityLabel("\(action.verb) \(docker.displayName)")
-                .help("\(action.verb) \(docker.displayName) (click again to confirm; right-click for the whole project)")
+                .help(docker.isCompose
+                      ? "\(action.verb) \(docker.displayName) (click again to confirm; right-click for the whole project)"
+                      : "\(action.verb) container \(docker.displayName) (click again to confirm)")
             case .confirming:
                 Button { performDocker(action) } label: {
                     Text(action.verb).font(.caption.weight(.semibold))
@@ -160,7 +162,7 @@ struct PortRowView: View {
             let primary = DockerAction.primary(for: docker)
             Button("\(primary.verb) \(docker.displayName)") { performDocker(primary) }
             if let project = DockerAction.project(for: docker), case .downProject(let name) = project {
-                Button("Down project \(name) (\(projectContainerCount) containers)") { performDocker(project) }
+                Button("Down project \(name) (\(projectContainerCount) container\(projectContainerCount == 1 ? "" : "s"))") { performDocker(project) }
             }
             Divider()
         }

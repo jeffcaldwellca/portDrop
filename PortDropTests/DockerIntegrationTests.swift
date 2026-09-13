@@ -26,7 +26,11 @@ final class DockerIntegrationTests: XCTestCase {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let file = dir.appendingPathComponent("compose.yml")
         try Self.compose.write(to: file, atomically: true, encoding: .utf8)
-        defer { Task { _ = await DockerInspector.run(["compose", "-p", Self.project, "down"], timeout: .seconds(60)) } }
+        addTeardownBlock {
+            // Awaited, so an early failure above still leaves nothing running on the developer's machine.
+            _ = await DockerInspector.run(["compose", "-p", Self.project, "down"], timeout: .seconds(60))
+            try? FileManager.default.removeItem(at: dir)
+        }
 
         let up = await DockerInspector.run(["compose", "-p", Self.project, "-f", file.path, "up", "-d"], timeout: .seconds(120))
         XCTAssertEqual(up?.status, 0, up?.stderr ?? "no result")

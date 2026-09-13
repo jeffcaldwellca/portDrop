@@ -25,12 +25,18 @@ enum ServiceClassifier {
             return ServiceInfo(kind: kind, url: url.flatMap(URL.init(string:)))
         }
 
-        if name.contains("postgres") { return info(.postgres, "postgresql") }
-        if name.contains("mysqld") || name.contains("mariadb") { return info(.mysql, "mysql") }
-        if name.contains("redis") { return info(.redis, "redis") }
-        if name.contains("mongod") { return info(.mongo, "mongodb") }
-        if name == "sshd" { return info(.ssh, "ssh", omitPortWhen: 22) }
-        if name.contains("ftpd") { return info(.ftp, "ftp", omitPortWhen: 21) }
+        func byName() -> ServiceInfo? {
+            if name.contains("postgres") { return info(.postgres, "postgresql") }
+            if name.contains("mysqld") || name.contains("mariadb") { return info(.mysql, "mysql") }
+            if name.contains("redis") { return info(.redis, "redis") }
+            if name.contains("mongod") { return info(.mongo, "mongodb") }
+            if name == "sshd" { return info(.ssh, "ssh", omitPortWhen: 22) }
+            if name.contains("ftpd") { return info(.ftp, "ftp", omitPortWhen: 21) }
+            return nil
+        }
+        // A real process name is definitive. A compose service name is whatever the author typed
+        // ("postgrest", "redis-commander"), so with a container port available that port goes first.
+        if servicePort == nil, let named = byName() { return named }
 
         let wellKnown = servicePort ?? port
         switch wellKnown {
@@ -46,7 +52,7 @@ enum ServiceClassifier {
         case 548: return info(.afp, "afp", omitPortWhen: 548)
         default:
             if httpPorts.contains(wellKnown) { return info(.http, "http") }
-            return info(.tcp, nil)
+            return byName() ?? info(.tcp, nil)
         }
     }
 

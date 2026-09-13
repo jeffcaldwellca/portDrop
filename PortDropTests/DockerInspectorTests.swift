@@ -52,9 +52,21 @@ final class DockerInspectorTests: XCTestCase {
 
     func testHostProcessNames() {
         XCTAssertTrue(DockerInspector.isHostProcess("com.docker.backend"))
-        XCTAssertTrue(DockerInspector.isHostProcess("com.docke"))   // lsof truncates command names in some modes
+        XCTAssertTrue(DockerInspector.isHostProcess("com.docke"))   // lsof truncates command names to 9 chars in some modes
         XCTAssertTrue(DockerInspector.isHostProcess("OrbStack Helper"))
+        XCTAssertTrue(DockerInspector.isHostProcess("vpnkit"))
         XCTAssertFalse(DockerInspector.isHostProcess("postgres"))
-        XCTAssertFalse(DockerInspector.isHostProcess("com"))
+        XCTAssertFalse(DockerInspector.isHostProcess("com.d"))
+    }
+
+    func testPortRangesExpand() {
+        let ports = DockerInspector.parsePorts("0.0.0.0:8000-8002->9000-9002/tcp, [::]:8000-8002->9000-9002/tcp")
+        XCTAssertEqual(ports, [.init(hostPort: 8000, containerPort: 9000), .init(hostPort: 8001, containerPort: 9001), .init(hostPort: 8002, containerPort: 9002)])
+        XCTAssertTrue(DockerInspector.parsePorts("0.0.0.0:8000-8002->9000-9005/tcp").isEmpty, "mismatched range lengths are skipped")
+        XCTAssertTrue(DockerInspector.parsePorts("0.0.0.0:9-1->1-9/tcp").isEmpty)
+    }
+
+    func testLegacyTwinForm() {
+        XCTAssertEqual(DockerInspector.parsePorts("0.0.0.0:5433->5432/tcp, :::5433->5432/tcp"), [.init(hostPort: 5433, containerPort: 5432)])
     }
 }

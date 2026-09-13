@@ -4,14 +4,14 @@ import XCTest
 final class DockerControllerTests: XCTestCase {
     func testDownServiceArguments() {
         XCTAssertEqual(DockerController.arguments(for: .downService(project: "can-railway", service: "postgres")),
-                       ["compose", "-p", "can-railway", "down", "postgres"])
+                       ["compose", "-p", "can-railway", "down", "--", "postgres"])
     }
     func testDownProjectArguments() {
         XCTAssertEqual(DockerController.arguments(for: .downProject(project: "can-railway")),
                        ["compose", "-p", "can-railway", "down"])
     }
     func testStopContainerArguments() {
-        XCTAssertEqual(DockerController.arguments(for: .stopContainer(id: "abc123", name: "redis")), ["stop", "abc123"])
+        XCTAssertEqual(DockerController.arguments(for: .stopContainer(id: "abc123", name: "redis")), ["stop", "--", "abc123"])
     }
     func testActionsForBindings() {
         let compose = DockerContainer(id: "a", name: "p-postgres-1", project: "p", service: "postgres", ports: [])

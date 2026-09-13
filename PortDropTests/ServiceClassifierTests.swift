@@ -31,4 +31,9 @@ final class ServiceClassifierTests: XCTestCase {
         XCTAssertEqual(d(9999, 9999, service: nil, name: "redis").kind, .redis)
     }
     func testDockerUnknownStaysTCP() { XCTAssertEqual(d(9999, 9999).kind, .tcp) }
+    func testDockerContainerPortBeatsLookalikeServiceName() {
+        XCTAssertEqual(d(3001, 3000, service: "postgrest").kind, .http)
+        XCTAssertEqual(d(8081, 8081, service: "redis-commander").kind, .http)
+    }
+    func testNativeProcessNameStillBeatsPort() { XCTAssertEqual(c(8080, "redis-server").kind, .redis) }
 }

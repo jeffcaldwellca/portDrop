@@ -42,9 +42,10 @@ enum DockerError: LocalizedError {
 enum DockerController {
     static func arguments(for action: DockerAction) -> [String] {
         switch action {
-        case .downService(let project, let service): ["compose", "-p", project, "down", service]
+        // `--` keeps a service or container named like a flag (e.g. "--volumes") from being parsed as one.
+        case .downService(let project, let service): ["compose", "-p", project, "down", "--", service]
         case .downProject(let project): ["compose", "-p", project, "down"]
-        case .stopContainer(let id, _): ["stop", id]
+        case .stopContainer(let id, _): ["stop", "--", id]
         }
     }
 
@@ -52,6 +53,7 @@ enum DockerController {
     static func run(_ action: DockerAction) async throws {
         guard DockerInspector.locateDocker() != nil else { throw DockerError.noDocker }
         guard let r = await DockerInspector.run(arguments(for: action), timeout: .seconds(60)) else { throw DockerError.timedOut }
+        if r.timedOut { throw DockerError.timedOut }
         guard r.status == 0 else {
             // compose writes progress to stderr even on success, so only the exit status decides; the last line is the reason.
             let last = r.stderr.split(separator: "\n").last.map(String.init) ?? "docker exited with status \(r.status)"

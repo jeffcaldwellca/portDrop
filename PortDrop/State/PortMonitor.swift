@@ -93,8 +93,15 @@ final class PortMonitor {
         isScanning = true
         defer { isScanning = false }
         do {
+            // `docker ps` runs alongside lsof when the last scan saw a Docker host process, so a slow daemon
+            // does not hold the list back; the first appearance of Docker costs one extra sequential call.
+            let expectDocker = ports.contains { DockerInspector.isHostProcess($0.processName) }
+            async let early: [DockerContainer] = expectDocker ? DockerInspector.scan() : []
             let scanned = try await PortScanner.scan()
-            let containers = scanned.contains { DockerInspector.isHostProcess($0.processName) } ? await DockerInspector.scan() : []
+            var containers = await early
+            if !expectDocker, scanned.contains(where: { DockerInspector.isHostProcess($0.processName) }) {
+                containers = await DockerInspector.scan()
+            }
             let bindings = DockerInspector.bindings(from: containers)
             let classified = await classify(scanned, bindings: bindings)
             let fresh = Self.newIDs(old: ports, new: scanned)
