@@ -62,3 +62,69 @@ enum DockerInspector {
         return out
     }
 }
+
+// MARK: - Running the CLI
+
+extension DockerInspector {
+    static let candidatePaths: [String] = [
+        "/usr/local/bin/docker",
+        "/opt/homebrew/bin/docker",
+        NSString(string: "~/.docker/bin/docker").expandingTildeInPath,
+        "/Applications/Docker.app/Contents/Resources/bin/docker",
+        "/Applications/OrbStack.app/Contents/MacOS/xbin/docker",
+    ]
+
+    private static let pathLock = NSLock()
+    nonisolated(unsafe) private static var cachedPath: String??
+
+    /// First executable docker binary from `candidatePaths`; cached for the process lifetime.
+    static func locateDocker() -> String? {
+        pathLock.lock(); defer { pathLock.unlock() }
+        if let cachedPath { return cachedPath }
+        let found = candidatePaths.first { FileManager.default.isExecutableFile(atPath: $0) }
+        cachedPath = .some(found)
+        return found
+    }
+
+    struct CLIResult: Sendable {
+        let status: Int32
+        let stdout: String
+        let stderr: String
+    }
+
+    /// Runs the docker CLI with a PATH that includes its own directory (for cli-plugins and credential helpers).
+    /// Returns nil when no binary exists or the process does not finish within `timeout`.
+    static func run(_ arguments: [String], timeout: Duration) async -> CLIResult? {
+        guard let docker = locateDocker() else { return nil }
+        let seconds = Int(timeout.components.seconds)
+        return await Task.detached(priority: .userInitiated) { () -> CLIResult? in
+            let p = Process()
+            p.executableURL = URL(fileURLWithPath: docker)
+            p.arguments = arguments
+            var env = ProcessInfo.processInfo.environment
+            let dir = (docker as NSString).deletingLastPathComponent
+            env["PATH"] = [dir, "/usr/local/bin", "/opt/homebrew/bin", env["PATH"] ?? "/usr/bin:/bin"].joined(separator: ":")
+            p.environment = env
+            let out = Pipe(), err = Pipe()
+            p.standardOutput = out
+            p.standardError = err
+            do { try p.run() } catch { return nil }
+            let deadline = DispatchWorkItem { if p.isRunning { p.terminate() } }
+            DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(seconds), execute: deadline)
+            let outData = out.fileHandleForReading.readDataToEndOfFile()
+            let errData = err.fileHandleForReading.readDataToEndOfFile()
+            p.waitUntilExit()
+            deadline.cancel()
+            if p.terminationReason == .uncaughtSignal { return nil }
+            return CLIResult(status: p.terminationStatus,
+                             stdout: String(decoding: outData, as: UTF8.self),
+                             stderr: String(decoding: errData, as: UTF8.self))
+        }.value
+    }
+
+    /// Running containers, or an empty list when Docker is absent, stopped, or slow. Never throws: that is normal.
+    static func scan() async -> [DockerContainer] {
+        guard let r = await run(["ps", "--no-trunc", "--format", "{{json .}}"], timeout: .seconds(5)), r.status == 0 else { return [] }
+        return parse(r.stdout)
+    }
+}
