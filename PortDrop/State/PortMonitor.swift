@@ -7,6 +7,10 @@ import UserNotifications
 final class PortMonitor {
     var ports: [ListeningPort] = []
     var services: [String: ServiceInfo] = [:]
+    /// Running containers from the last `docker ps`; empty when no Docker host process is listening.
+    var dockerContainers: [DockerContainer] = []
+    /// Published host port → container behind it.
+    var docker: [UInt16: DockerBinding] = [:]
     var lastError: String?
     var isScanning = false
     var searchText = ""
@@ -41,11 +45,33 @@ final class PortMonitor {
                 || p.user.lowercased().contains(q)
                 || (services[p.id]?.kind.label.lowercased().contains(q) ?? false)
                 || resolver.presentation(for: p, kind: services[p.id]?.kind ?? .tcp).displayName.lowercased().contains(q)
+                || (dockerBinding(for: p).map { b in
+                        b.container.name.lowercased().contains(q)
+                        || (b.container.project?.lowercased().contains(q) ?? false)
+                        || (b.container.service?.lowercased().contains(q) ?? false)
+                    } ?? false)
         }
     }
 
     func service(for port: ListeningPort) -> ServiceInfo {
         services[port.id] ?? ServiceClassifier.classify(port: port.port, processName: port.processName, bindAddress: port.bindAddress)
+    }
+
+    /// A row is Docker-backed only when its process is the Docker host *and* a container publishes that port,
+    /// so a native Postgres on 5432 is never mislabelled by a container on another runtime.
+    func dockerBinding(for port: ListeningPort) -> DockerBinding? {
+        guard DockerInspector.isHostProcess(port.processName) else { return nil }
+        return docker[port.port]
+    }
+
+    func projectContainerCount(_ project: String) -> Int {
+        dockerContainers.filter { $0.project == project }.count
+    }
+
+    func perform(_ action: DockerAction) async throws {
+        try await DockerController.run(action)
+        try? await Task.sleep(for: .milliseconds(250))
+        await refresh()
     }
 
     func stop() { loopTask?.cancel(); loopTask = nil }
@@ -69,9 +95,14 @@ final class PortMonitor {
         do {
             let scanned = try await PortScanner.scan()
             let classified = await classify(scanned)
+            let containers = scanned.contains { DockerInspector.isHostProcess($0.processName) } ? await DockerInspector.scan() : []
             let fresh = Self.newIDs(old: ports, new: scanned)
             if ports != scanned { ports = scanned }          // avoid redraws (and label re-renders) when nothing changed
             if services != classified { services = classified }
+            if dockerContainers != containers {
+                dockerContainers = containers
+                docker = DockerInspector.bindings(from: containers)
+            }
             lastError = nil
             resolver.evict(pidsNotIn: Set(scanned.map(\.pid)))
             if hasScannedOnce && notifyOnNewPorts {

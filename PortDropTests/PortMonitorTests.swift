@@ -25,4 +25,38 @@ final class PortMonitorTests: XCTestCase {
         m.searchText = ""
         XCTAssertEqual(m.filteredPorts.count, 2)
     }
+
+    @MainActor func testDockerBindingRequiresHostProcess() {
+        let m = PortMonitor(autoStart: false)
+        let c = DockerContainer(id: "a", name: "p-postgres-1", project: "p", service: "postgres", ports: [.init(hostPort: 5432, containerPort: 5432)])
+        m.dockerContainers = [c]
+        m.docker = DockerInspector.bindings(from: [c])
+        let native = ListeningPort(pid: 1, processName: "postgres", user: "u", port: 5432, bindAddress: "*", ipVersions: [.v4])
+        let backend = ListeningPort(pid: 2, processName: "com.docker.backend", user: "u", port: 5432, bindAddress: "*", ipVersions: [.v6])
+        XCTAssertNil(m.dockerBinding(for: native))
+        XCTAssertEqual(m.dockerBinding(for: backend)?.displayName, "postgres")
+    }
+
+    @MainActor func testSearchMatchesDockerNames() {
+        let m = PortMonitor(autoStart: false)
+        let c = DockerContainer(id: "a", name: "can-railway-postgres-1", project: "can-railway", service: "postgres", ports: [.init(hostPort: 5433, containerPort: 5432)])
+        m.dockerContainers = [c]
+        m.docker = DockerInspector.bindings(from: [c])
+        m.ports = [ListeningPort(pid: 2, processName: "com.docker.backend", user: "u", port: 5433, bindAddress: "*", ipVersions: [.v6]), p(1, 80)]
+        m.searchText = "railway"
+        XCTAssertEqual(m.filteredPorts.map(\.port), [5433])
+        m.searchText = "postgres"
+        XCTAssertEqual(m.filteredPorts.map(\.port), [5433])
+    }
+
+    @MainActor func testProjectContainerCount() {
+        let m = PortMonitor(autoStart: false)
+        m.dockerContainers = [
+            DockerContainer(id: "a", name: "x-db-1", project: "x", service: "db", ports: []),
+            DockerContainer(id: "b", name: "x-web-1", project: "x", service: "web", ports: []),
+            DockerContainer(id: "c", name: "loose", project: nil, service: nil, ports: []),
+        ]
+        XCTAssertEqual(m.projectContainerCount("x"), 2)
+        XCTAssertEqual(m.projectContainerCount("nope"), 0)
+    }
 }
