@@ -83,3 +83,7 @@ xcodebuild -scheme PortDrop -destination 'platform=macOS' test
 The app is intentionally **not sandboxed** — `lsof` and `kill` need direct process access. The `PortDrop` scheme runs the unit tests in `PortDropTests`; CI runs the same command with ad-hoc signing on every push and pull request. The Docker integration test brings up a throwaway compose project and is skipped unless you pass `TEST_RUNNER_PORTDROP_DOCKER_E2E=1` to `xcodebuild test` with Docker running.
 
 Release, website, and branding workflows are documented in [docs/MAINTAINING.md](docs/MAINTAINING.md).
+
+## License
+
+GPL-3.0. See [LICENSE](LICENSE).
