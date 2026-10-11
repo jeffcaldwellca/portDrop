@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Observation
 import UserNotifications
@@ -45,6 +46,9 @@ final class PortMonitor {
     @ObservationIgnored var scanPorts: @Sendable () async throws -> [ListeningPort] = { try await PortScanner.scan() }
     @ObservationIgnored var scanSystemPorts: @Sendable () async -> [ListeningPort] = { await SystemPortScanner.scan() }
     @ObservationIgnored var probe: @Sendable (_ host: String, _ port: UInt16) async -> Bool = { await HTTPProbe.respondsToHTTP(host: $0, port: $1) }
+    @ObservationIgnored var openURL: (URL) -> Void = { NSWorkspace.shared.open($0) }
+    @ObservationIgnored var canOpenURL: (URL) -> Bool = { NSWorkspace.shared.urlForApplication(toOpen: $0) != nil }
+    @ObservationIgnored var deliver: (UNNotificationRequest) -> Void = { UNUserNotificationCenter.current().add($0) }
     @ObservationIgnored var visibleInterval: Duration = .seconds(2)
     @ObservationIgnored var hiddenInterval: Duration = .seconds(10)
 
@@ -61,12 +65,47 @@ final class PortMonitor {
     private var probeMisses: [String: Int] = [:]
     private var loopTask: Task<Void, Never>?
     private var sleepTask: Task<Void, Never>?
+    private var responder: NotificationResponder?
 
     init(autoStart: Bool = true, defaults: UserDefaults = .standard) {
         self.defaults = defaults
         showSystemPorts = defaults.bool(forKey: Self.systemKey)
         hiddenProcessNames = Set(defaults.stringArray(forKey: Self.hiddenKey) ?? [])
-        if autoStart { start() }
+        if autoStart {
+            installNotificationActions()
+            start()
+        }
+    }
+
+    private func installNotificationActions() {
+        let responder = NotificationResponder { [weak self] action, portID in
+            await self?.handleNotificationAction(action, portID: portID)
+        }
+        self.responder = responder   // the center only holds its delegate weakly
+        UNUserNotificationCenter.current().delegate = responder
+        UNUserNotificationCenter.current().setNotificationCategories(PortNotification.categories)
+    }
+
+    /// Open or Kill pressed on a "new service" notification. The port must still be in the list under the
+    /// same pid: a notification can sit in Notification Center long after its process is gone and the pid reused.
+    func handleNotificationAction(_ action: String, portID: String) async {
+        guard let port = ports.first(where: { $0.id == portID }) else { return }
+        switch action {
+        case PortNotification.openAction:
+            if let url = service(for: port).url { openURL(url) }
+        case PortNotification.killAction:
+            guard dockerBinding(for: port) == nil else { return }
+            do {
+                try await kill(port, force: false)
+            } catch KillError.cancelled {
+            } catch {
+                let content = UNMutableNotificationContent()
+                content.title = "Could not kill \(port.processName) on port \(port.port)"
+                content.body = error.localizedDescription
+                deliver(UNNotificationRequest(identifier: "kill-failed:\(port.id)", content: content, trigger: nil))
+            }
+        default: break   // a plain click on the banner
+        }
     }
 
     var filteredPorts: [ListeningPort] {
@@ -256,7 +295,11 @@ final class PortMonitor {
         let content = UNMutableNotificationContent()
         content.title = "New service on port \(p.port)"
         content.body = Self.notificationBody(for: p, docker: docker)
-        let req = UNNotificationRequest(identifier: p.id, content: content, trigger: nil)
-        UNUserNotificationCenter.current().add(req)
+        content.userInfo = [PortNotification.portIDKey: p.id]
+        let canOpen = service(for: p).url.map(canOpenURL) ?? false
+        if let category = PortNotification.category(canOpen: canOpen, isDocker: docker != nil) {
+            content.categoryIdentifier = category
+        }
+        deliver(UNNotificationRequest(identifier: p.id, content: content, trigger: nil))
     }
 }

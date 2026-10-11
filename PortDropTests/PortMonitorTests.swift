@@ -1,3 +1,4 @@
+import UserNotifications
 import XCTest
 @testable import PortDrop
 
@@ -166,5 +167,106 @@ final class PortMonitorTests: XCTestCase {
         XCTAssertEqual(m.hiddenProcessNames, ["rapportd"])
         m.unhideAll()
         XCTAssertTrue(PortMonitor(autoStart: false, defaults: defaults).hiddenProcessNames.isEmpty)
+    }
+
+    // MARK: - Notification actions
+
+    final class Box<T>: @unchecked Sendable {
+        private let lock = NSLock()
+        private var stored: T
+        init(_ value: T) { stored = value }
+        var value: T {
+            get { lock.lock(); defer { lock.unlock() }; return stored }
+            set { lock.lock(); stored = newValue; lock.unlock() }
+        }
+    }
+
+    /// A monitor with notifications on, whose scan results and delivered requests the test controls.
+    @MainActor func notifyingMonitor() -> (PortMonitor, Box<[ListeningPort]>, Box<[UNNotificationRequest]>) {
+        let suite = "PortDropTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(true, forKey: "notifyOnNewPorts")
+        let m = PortMonitor(autoStart: false, defaults: defaults)
+        let scan = Box<[ListeningPort]>([])
+        let sent = Box<[UNNotificationRequest]>([])
+        m.scanPorts = { scan.value }
+        m.probe = { _, _ in false }
+        m.canOpenURL = { _ in true }
+        m.deliver = { sent.value.append($0) }
+        return (m, scan, sent)
+    }
+
+    @MainActor func testNewPortNotificationOffersOpenAndKill() async {
+        let (m, scan, sent) = notifyingMonitor()
+        await m.refresh()
+        scan.value = [p(1, 8080)]
+        await m.refresh()
+        XCTAssertEqual(sent.value.count, 1)
+        let content = sent.value[0].content
+        XCTAssertEqual(content.title, "New service on port 8080")
+        XCTAssertEqual(content.categoryIdentifier, PortNotification.openAndKill)
+        XCTAssertEqual(content.userInfo["portID"] as? String, "1:8080")
+    }
+
+    @MainActor func testNotificationWithoutAURLOffersOnlyKill() async {
+        let (m, scan, sent) = notifyingMonitor()
+        await m.refresh()
+        scan.value = [p(1, 40000)]
+        await m.refresh()
+        XCTAssertEqual(sent.value.first?.content.categoryIdentifier, PortNotification.killOnly)
+    }
+
+    func testDockerNotificationsNeverOfferKill() {
+        XCTAssertEqual(PortNotification.category(canOpen: true, isDocker: true), PortNotification.openOnly)
+        XCTAssertNil(PortNotification.category(canOpen: false, isDocker: true))
+        XCTAssertEqual(PortNotification.category(canOpen: true, isDocker: false), PortNotification.openAndKill)
+        XCTAssertEqual(PortNotification.category(canOpen: false, isDocker: false), PortNotification.killOnly)
+    }
+
+    @MainActor func testOpenActionOpensTheServiceURL() async {
+        let (m, scan, _) = notifyingMonitor()
+        let opened = Box<[URL]>([])
+        m.openURL = { opened.value.append($0) }
+        scan.value = [p(1, 8080)]
+        await m.refresh()
+        await m.handleNotificationAction(PortNotification.openAction, portID: "1:8080")
+        XCTAssertEqual(opened.value, [URL(string: "http://localhost:8080")!])
+    }
+
+    @MainActor func testKillActionKillsOnlyAProcessStillInTheList() async throws {
+        let (m, scan, _) = notifyingMonitor()
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/bin/sleep")
+        proc.arguments = ["60"]
+        try proc.run()
+        addTeardownBlock { if proc.isRunning { Darwin.kill(proc.processIdentifier, SIGKILL) } }
+        let id = "\(proc.processIdentifier):9999"
+
+        await m.handleNotificationAction(PortNotification.killAction, portID: id)
+        XCTAssertTrue(proc.isRunning, "not in the list (stale notification, or the pid was reused): leave it alone")
+
+        scan.value = [p(proc.processIdentifier, 9999)]
+        await m.refresh()
+        await m.handleNotificationAction(PortNotification.killAction, portID: id)
+        proc.waitUntilExit()
+        XCTAssertEqual(proc.terminationReason, .uncaughtSignal)
+    }
+
+    @MainActor func testKillActionThatFailsSaysSo() async throws {
+        let (m, scan, sent) = notifyingMonitor()
+        let proc = Process()
+        proc.executableURL = URL(fileURLWithPath: "/bin/sh")
+        proc.arguments = ["-c", "trap '' TERM; echo ready; while :; do sleep 1; done"]
+        let out = Pipe()
+        proc.standardOutput = out
+        try proc.run()
+        addTeardownBlock { if proc.isRunning { Darwin.kill(proc.processIdentifier, SIGKILL) } }
+        _ = out.fileHandleForReading.availableData
+        scan.value = [p(proc.processIdentifier, 9999)]
+        await m.refresh()
+
+        await m.handleNotificationAction(PortNotification.killAction, portID: "\(proc.processIdentifier):9999")
+        XCTAssertEqual(sent.value.last?.content.title, "Could not kill x on port 9999")
     }
 }

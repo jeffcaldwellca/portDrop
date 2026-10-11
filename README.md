@@ -70,7 +70,7 @@ PortDrop keeps itself current with [Sparkle](https://sparkle-project.org): it ch
 - **Hide the noise.** Right-click → **Hide** removes a process (say `rapportd`) from the list, the count, and notifications; bring it back from ⚙︎ → **Hidden Processes**.
 - **Right-click** a row for Open, Copy URL / PID / host:port, Reveal in Finder, Kill, and Force Kill (plus Down / Down project on Docker rows).
 - **Menu-bar badge**: the PortDrop mark plus the number of listening ports.
-- **Optional notification** when a new port starts listening.
+- **Optional notification** when a new port starts listening, with **Open** and **Kill** buttons on the banner (Docker ports get Open only).
 - **Launch at Login** via `SMAppService`.
 
 Nothing leaves your Mac: PortDrop only talks to `127.0.0.1`/`::1` for the HTTP probe, and it has no analytics, telemetry, or network dependencies.
