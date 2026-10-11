@@ -101,61 +101,18 @@ extension DockerInspector {
         return found
     }
 
-    struct CLIResult: Sendable {
-        let status: Int32
-        let stdout: String
-        let stderr: String
-        /// The deadline fired and the process was killed; `status` is then meaningless.
-        let timedOut: Bool
-    }
-
-    private final class Flag: @unchecked Sendable {
-        private let lock = NSLock()
-        private var value = false
-        func set() { lock.lock(); value = true; lock.unlock() }
-        var isSet: Bool { lock.lock(); defer { lock.unlock() }; return value }
-    }
+    typealias CLIResult = Subprocess.Result
 
     /// Runs the docker CLI with a PATH that includes its own directory (for cli-plugins and credential helpers).
-    /// Returns nil when no binary exists or it cannot be launched. Both pipes are drained concurrently so a
-    /// chatty child (compose logs progress to stderr) cannot fill one and stall; at `timeout` the process gets
-    /// SIGTERM and, two seconds later, SIGKILL.
+    /// Returns nil when no binary exists or it cannot be launched.
     static func run(_ arguments: [String], timeout: Duration) async -> CLIResult? {
         guard let docker = locateDocker() else { return nil }
-        let seconds = Int(timeout.components.seconds)
-        return await Task.detached(priority: .userInitiated) { () -> CLIResult? in
-            let p = Process()
-            p.executableURL = URL(fileURLWithPath: docker)
-            p.arguments = arguments
-            // A neutral cwd: `compose -p X down` would otherwise pick up a compose file from wherever the app was launched.
-            p.currentDirectoryURL = FileManager.default.temporaryDirectory
-            var env = ProcessInfo.processInfo.environment
-            let dir = (docker as NSString).deletingLastPathComponent
-            env["PATH"] = [dir, "/usr/local/bin", "/opt/homebrew/bin", env["PATH"] ?? "/usr/bin:/bin"].joined(separator: ":")
-            p.environment = env
-            let out = Pipe(), err = Pipe()
-            p.standardOutput = out
-            p.standardError = err
-            do { try p.run() } catch { return nil }
-            let timedOut = Flag()
-            let pid = p.processIdentifier
-            let deadline = DispatchWorkItem {
-                guard p.isRunning else { return }
-                timedOut.set()
-                p.terminate()
-                DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(2)) { if p.isRunning { kill(pid, SIGKILL) } }
-            }
-            DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(seconds), execute: deadline)
-            let errTask = Task.detached { err.fileHandleForReading.readDataToEndOfFile() }
-            let outData = out.fileHandleForReading.readDataToEndOfFile()
-            let errData = await errTask.value
-            p.waitUntilExit()
-            deadline.cancel()
-            return CLIResult(status: p.terminationStatus,
-                             stdout: String(decoding: outData, as: UTF8.self),
-                             stderr: String(decoding: errData, as: UTF8.self),
-                             timedOut: timedOut.isSet)
-        }.value
+        var env = ProcessInfo.processInfo.environment
+        let dir = (docker as NSString).deletingLastPathComponent
+        env["PATH"] = [dir, "/usr/local/bin", "/opt/homebrew/bin", env["PATH"] ?? "/usr/bin:/bin"].joined(separator: ":")
+        // A neutral cwd: `compose -p X down` would otherwise pick up a compose file from wherever the app was launched.
+        return await Subprocess.run(docker, arguments, environment: env,
+                                    currentDirectory: FileManager.default.temporaryDirectory, timeout: timeout)
     }
 
     /// Running containers, or an empty list when Docker is absent, stopped, or slow. Never throws: that is normal.

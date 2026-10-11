@@ -67,12 +67,15 @@ struct PortRowView: View {
 
             HStack(spacing: 6) {
                 // Always laid out so the kill column lines up; invisible + inert when there is no URL.
-                Button { if let url = service.url { NSWorkspace.shared.open(url) } } label: {
-                    Image(systemName: "arrow.up.right.square")
+                Button {
+                    guard let url = service.url else { return }
+                    if canOpen { NSWorkspace.shared.open(url) } else { copy(url.absoluteString) }
+                } label: {
+                    Image(systemName: canOpen || service.url == nil ? "arrow.up.right.square" : "doc.on.doc")
                 }
                 .buttonStyle(.accessoryBar)
-                .accessibilityLabel("Open")
-                .help(service.url.map { "Open \($0.absoluteString)" } ?? "")
+                .accessibilityLabel(canOpen ? "Open" : "Copy URL")
+                .help(openHelp)
                 .opacity(service.url == nil ? 0 : 1)
                 .disabled(service.url == nil)
                 .accessibilityHidden(service.url == nil)
@@ -95,6 +98,17 @@ struct PortRowView: View {
     private var subtitle: String {
         // The compose project is the useful context; the container name rarely fits and is in the tooltip.
         docker?.container.project ?? "\(port.user) · PID \(port.pid)"
+    }
+
+    /// Whether any installed app handles the URL's scheme; `postgresql://` and friends need a client app.
+    private var canOpen: Bool {
+        service.url.map { NSWorkspace.shared.urlForApplication(toOpen: $0) != nil } ?? false
+    }
+
+    private var openHelp: String {
+        guard let url = service.url else { return "" }
+        if canOpen { return "Open \(url.absoluteString)" }
+        return "No app opens \(url.scheme ?? ""):// links. Click to copy \(url.absoluteString)"
     }
 
     private var bindDescription: String {
@@ -167,7 +181,7 @@ struct PortRowView: View {
             Divider()
         }
         if let url = service.url {
-            Button("Open \(url.absoluteString)") { NSWorkspace.shared.open(url) }
+            if canOpen { Button("Open \(url.absoluteString)") { NSWorkspace.shared.open(url) } }
             Button("Copy URL") { copy(url.absoluteString) }
         }
         Button("Copy PID") { copy(String(port.pid)) }

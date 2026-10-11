@@ -43,9 +43,15 @@ struct PanelView: View {
                 .help("Refresh now")
                 Menu {
                     Toggle("Launch at Login", isOn: $launchAtLogin)
-                        .onChange(of: launchAtLogin) { _, v in LaunchAtLogin.isEnabled = v }
+                        .onChange(of: launchAtLogin) { _, v in
+                            guard v != LaunchAtLogin.isEnabled else { return }
+                            LaunchAtLogin.isEnabled = v
+                            launchAtLogin = LaunchAtLogin.isEnabled   // snaps back if macOS refused
+                        }
                     Toggle("Notify on new ports", isOn: Binding(
                         get: { monitor.notifyOnNewPorts }, set: { monitor.notifyOnNewPorts = $0 }))
+                    Toggle("Show system ports", isOn: $monitor.showSystemPorts)
+                        .onChange(of: monitor.showSystemPorts) { Task { await monitor.refresh() } }
                     Divider()
                     Button("Check for Updates…") { updater.checkForUpdates() }
                         .disabled(!updater.canCheckForUpdates)

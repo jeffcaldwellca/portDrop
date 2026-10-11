@@ -3,10 +3,12 @@ import Darwin
 
 enum KillError: LocalizedError {
     case cancelled
+    case stillRunning
     case failed(String)
     var errorDescription: String? {
         switch self {
         case .cancelled: "Authentication cancelled"
+        case .stillRunning: "Still running. Right-click to Force Kill"
         case .failed(let m): m
         }
     }
@@ -22,6 +24,16 @@ enum ProcessKiller {
         case EPERM: try await killAsAdmin(pid: pid, signal: force ? "KILL" : "TERM")
         default: throw KillError.failed(String(cString: strerror(errno)))
         }
+    }
+
+    /// Polls until `pid` is gone (or a zombie). False when it is still alive at `timeout`.
+    static func waitForExit(pid: pid_t, timeout: Duration) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ProcessLookup.isRunning(pid: pid) {
+            guard ContinuousClock.now < deadline else { return false }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return true
     }
 
     private static func killAsAdmin(pid: pid_t, signal: String) async throws {

@@ -59,4 +59,81 @@ final class PortMonitorTests: XCTestCase {
         XCTAssertEqual(m.projectContainerCount("x"), 2)
         XCTAssertEqual(m.projectContainerCount("nope"), 0)
     }
+
+    // MARK: - Refresh behaviour (scanner and probe injected)
+
+    final class Counter: @unchecked Sendable {
+        private let lock = NSLock()
+        private var n = 0
+        @discardableResult func bump() -> Int { lock.lock(); defer { lock.unlock() }; n += 1; return n }
+        var value: Int { lock.lock(); defer { lock.unlock() }; return n }
+    }
+
+    @MainActor func monitor(ports: [ListeningPort], system: [ListeningPort] = []) -> PortMonitor {
+        let suite = "PortDropTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        let m = PortMonitor(autoStart: false, defaults: defaults)
+        m.scanPorts = { ports }
+        m.scanSystemPorts = { system }
+        m.probe = { _, _ in false }
+        return m
+    }
+
+    @MainActor func testSystemPortsStayHiddenUntilToggled() async {
+        let root = ListeningPort(pid: 7, processName: "sshd", user: "root", port: 22, bindAddress: "*", ipVersions: [.v4])
+        let m = monitor(ports: [p(1, 8080)], system: [p(1, 8080), root])
+        await m.refresh()
+        XCTAssertEqual(m.ports.map(\.port), [8080])
+
+        m.showSystemPorts = true
+        await m.refresh()
+        XCTAssertEqual(m.ports.map(\.id), ["7:22", "1:8080"], "merged by pid:port, sorted by port")
+        XCTAssertEqual(m.ports.first?.user, "root")
+    }
+
+    @MainActor func testSlowStarterIsReprobedUntilItAnswers() async {
+        let m = monitor(ports: [p(1, 9999)])
+        let calls = Counter()
+        m.probe = { _, _ in calls.bump() >= 3 }
+        await m.refresh()
+        await m.refresh()
+        XCTAssertEqual(m.services["1:9999"]?.kind, .tcp)
+        await m.refresh()
+        XCTAssertEqual(m.services["1:9999"]?.kind, .http)
+        await m.refresh()
+        XCTAssertEqual(calls.value, 3, "a hit is cached")
+    }
+
+    @MainActor func testSilentPortStopsBeingProbed() async {
+        let m = monitor(ports: [p(1, 9999)])
+        let calls = Counter()
+        m.probe = { _, _ in calls.bump(); return false }
+        for _ in 0..<(PortMonitor.maxProbeAttempts + 5) { await m.refresh() }
+        XCTAssertEqual(calls.value, PortMonitor.maxProbeAttempts)
+    }
+
+    @MainActor func testOpeningThePanelSwitchesToTheFastIntervalImmediately() async throws {
+        let m = monitor(ports: [])
+        let scans = Counter()
+        m.scanPorts = { scans.bump(); return [] }
+        m.hiddenInterval = .seconds(30)
+        m.visibleInterval = .milliseconds(50)
+        m.start()
+        defer { m.stop() }
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertEqual(scans.value, 1, "one scan, then the long background sleep")
+
+        m.isPanelVisible = true
+        try await Task.sleep(for: .milliseconds(600))
+        XCTAssertGreaterThanOrEqual(scans.value, 4, "the background sleep must not delay the fast cadence")
+    }
+
+    func testNotificationBodyNamesTheDockerService() {
+        let c = DockerContainer(id: "a", name: "shop-db-1", project: "shop", service: "db", ports: [.init(hostPort: 5433, containerPort: 5432)])
+        let backend = ListeningPort(pid: 2, processName: "com.docker.backend", user: "u", port: 5433, bindAddress: "*", ipVersions: [.v6])
+        XCTAssertEqual(PortMonitor.notificationBody(for: backend, docker: DockerBinding(container: c, containerPort: 5432)),
+                       "db (Docker, shop) started listening")
+        XCTAssertEqual(PortMonitor.notificationBody(for: p(1, 80), docker: nil), "x (PID 1) started listening")
+    }
 }

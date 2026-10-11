@@ -61,24 +61,15 @@ enum PortScanner {
     }
 
     static func scan() async throws -> [ListeningPort] {
-        try await Task.detached(priority: .userInitiated) {
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: lsofPath)
-            process.arguments = arguments
-            let stdout = Pipe(), stderr = Pipe()
-            process.standardOutput = stdout
-            process.standardError = stderr
-            do { try process.run() } catch { throw ScanError.lsofFailed(error.localizedDescription) }
-            let outData = stdout.fileHandleForReading.readDataToEndOfFile()
-            let errData = stderr.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            let output = String(decoding: outData, as: UTF8.self)
-            // lsof exits 1 when nothing matched or when some fds couldn't be read; only fail on empty output + error text.
-            if output.isEmpty && process.terminationStatus != 0 {
-                let err = String(decoding: errData, as: UTF8.self).trimmingCharacters(in: .whitespacesAndNewlines)
-                if !err.isEmpty { throw ScanError.lsofFailed(err) }
-            }
-            return parse(output)
-        }.value
+        guard let r = await Subprocess.run(lsofPath, arguments, timeout: .seconds(5)) else {
+            throw ScanError.lsofFailed("could not be launched")
+        }
+        if r.timedOut { throw ScanError.lsofFailed("timed out") }
+        // lsof exits 1 when nothing matched or when some fds couldn't be read; only fail on empty output + error text.
+        if r.stdout.isEmpty && r.status != 0 {
+            let err = r.stderr.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !err.isEmpty { throw ScanError.lsofFailed(err) }
+        }
+        return parse(r.stdout)
     }
 }
