@@ -6,6 +6,17 @@ struct ProcessPresentation: Sendable {
     let icon: NSImage
     let bundlePath: String?
     let executablePath: String?
+    /// Where the process was started; for a dev server that is the project it belongs to.
+    let workingDirectory: String?
+    let commandLine: String?
+
+    var projectName: String? { Self.projectName(workingDirectory: workingDirectory, home: NSHomeDirectory()) }
+
+    /// The folder name, unless the directory says nothing about a project (`/` and the home folder).
+    static func projectName(workingDirectory: String?, home: String) -> String? {
+        guard let workingDirectory, workingDirectory != "/", workingDirectory != home else { return nil }
+        return (workingDirectory as NSString).lastPathComponent
+    }
 }
 
 @MainActor
@@ -17,6 +28,8 @@ final class ProcessInfoResolver {
         let icon: NSImage?
         let bundlePath: String?
         let executablePath: String?
+        let workingDirectory: String?
+        let commandLine: String?
     }
 
     private var cache: [pid_t: Resolved] = [:]
@@ -26,7 +39,8 @@ final class ProcessInfoResolver {
         let r = cache[port.pid] ?? resolve(port)
         cache[port.pid] = r
         return ProcessPresentation(displayName: r.displayName, icon: r.icon ?? symbol(for: kind),
-                                   bundlePath: r.bundlePath, executablePath: r.executablePath)
+                                   bundlePath: r.bundlePath, executablePath: r.executablePath,
+                                   workingDirectory: r.workingDirectory, commandLine: r.commandLine)
     }
 
     func evict(pidsNotIn live: Set<pid_t>) {
@@ -44,19 +58,24 @@ final class ProcessInfoResolver {
     private func resolve(_ port: ListeningPort) -> Resolved {
         let exe = ProcessLookup.executablePath(pid: port.pid)
         let bundle = exe.flatMap(bundlePath(containing:))
+        let cwd = ProcessLookup.workingDirectory(pid: port.pid)
+        let command = ProcessLookup.arguments(pid: port.pid).map { String($0.joined(separator: " ").prefix(300)) }
 
         if let app = NSRunningApplication(processIdentifier: port.pid), let icon = app.icon {
             return Resolved(displayName: app.localizedName ?? port.processName,
-                            icon: icon, bundlePath: app.bundleURL?.path, executablePath: exe)
+                            icon: icon, bundlePath: app.bundleURL?.path, executablePath: exe,
+                            workingDirectory: cwd, commandLine: command)
         }
         if let bundle {
             let icon = NSWorkspace.shared.icon(forFile: bundle)
             let name = Bundle(path: bundle).flatMap { b in
                 (b.object(forInfoDictionaryKey: "CFBundleDisplayName") ?? b.object(forInfoDictionaryKey: "CFBundleName")) as? String
             } ?? port.processName
-            return Resolved(displayName: name, icon: icon, bundlePath: bundle, executablePath: exe)
+            return Resolved(displayName: name, icon: icon, bundlePath: bundle, executablePath: exe,
+                            workingDirectory: cwd, commandLine: command)
         }
-        return Resolved(displayName: port.processName, icon: nil, bundlePath: nil, executablePath: exe)
+        return Resolved(displayName: port.processName, icon: nil, bundlePath: nil, executablePath: exe,
+                        workingDirectory: cwd, commandLine: command)
     }
 
     private func bundlePath(containing path: String) -> String? {

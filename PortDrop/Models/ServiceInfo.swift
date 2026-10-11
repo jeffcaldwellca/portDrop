@@ -1,7 +1,7 @@
 import SwiftUI
 
 enum ServiceKind: String, Sendable, CaseIterable {
-    case http, https, ftp, ssh, postgres, mysql, redis, mongo, vnc, smb, afp, tcp
+    case http, https, ftp, ssh, postgres, mysql, redis, mongo, mssql, elasticsearch, memcached, rabbitmq, kafka, vnc, smb, afp, tcp
 
     var label: String {
         switch self {
@@ -13,6 +13,11 @@ enum ServiceKind: String, Sendable, CaseIterable {
         case .mysql: "MySQL"
         case .redis: "Redis"
         case .mongo: "MongoDB"
+        case .mssql: "SQL Server"
+        case .elasticsearch: "Elasticsearch"
+        case .memcached: "Memcached"
+        case .rabbitmq: "RabbitMQ"
+        case .kafka: "Kafka"
         case .vnc: "VNC"
         case .smb: "SMB"
         case .afp: "AFP"
@@ -25,7 +30,8 @@ enum ServiceKind: String, Sendable, CaseIterable {
         case .http, .https: "globe"
         case .ftp: "folder.badge.gearshape"
         case .ssh: "terminal"
-        case .postgres, .mysql, .redis, .mongo: "cylinder.split.1x2"
+        case .postgres, .mysql, .redis, .mongo, .mssql, .elasticsearch, .memcached: "cylinder.split.1x2"
+        case .rabbitmq, .kafka: "arrow.left.arrow.right"
         case .vnc: "display"
         case .smb, .afp: "externaldrive.connected.to.line.below"
         case .tcp: "network"
@@ -42,6 +48,11 @@ enum ServiceKind: String, Sendable, CaseIterable {
         case .mysql: .teal
         case .redis: .red
         case .mongo: .mint
+        case .mssql: .red
+        case .elasticsearch: .yellow
+        case .memcached: .green
+        case .rabbitmq: .orange
+        case .kafka: .cyan
         case .vnc: .pink
         case .smb, .afp: .brown
         case .tcp: .gray

@@ -37,6 +37,9 @@ final class PortMonitor {
         }
     }
 
+    /// Process names the user has hidden from the list (and so from the menu-bar count and notifications).
+    private(set) var hiddenProcessNames: Set<String>
+
     let resolver = ProcessInfoResolver()
 
     @ObservationIgnored var scanPorts: @Sendable () async throws -> [ListeningPort] = { try await PortScanner.scan() }
@@ -51,6 +54,7 @@ final class PortMonitor {
 
     private static let notifyKey = "notifyOnNewPorts"
     private static let systemKey = "showSystemPorts"
+    private static let hiddenKey = "hiddenProcessNames"
     private let defaults: UserDefaults
     private var hasScannedOnce = false
     private var probeHits: Set<String> = []
@@ -61,6 +65,7 @@ final class PortMonitor {
     init(autoStart: Bool = true, defaults: UserDefaults = .standard) {
         self.defaults = defaults
         showSystemPorts = defaults.bool(forKey: Self.systemKey)
+        hiddenProcessNames = Set(defaults.stringArray(forKey: Self.hiddenKey) ?? [])
         if autoStart { start() }
     }
 
@@ -68,17 +73,35 @@ final class PortMonitor {
         let q = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         guard !q.isEmpty else { return ports }
         return ports.filter { p in
-            String(p.port).contains(q)
+            let presentation = resolver.presentation(for: p, kind: services[p.id]?.kind ?? .tcp)
+            return String(p.port).contains(q)
                 || p.processName.lowercased().contains(q)
                 || p.user.lowercased().contains(q)
                 || (services[p.id]?.kind.label.lowercased().contains(q) ?? false)
-                || resolver.presentation(for: p, kind: services[p.id]?.kind ?? .tcp).displayName.lowercased().contains(q)
+                || presentation.displayName.lowercased().contains(q)
+                || (presentation.workingDirectory?.lowercased().contains(q) ?? false)
                 || (dockerBinding(for: p).map { b in
                         b.container.name.lowercased().contains(q)
                         || (b.container.project?.lowercased().contains(q) ?? false)
                         || (b.container.service?.lowercased().contains(q) ?? false)
                     } ?? false)
         }
+    }
+
+    func hide(_ processName: String) {
+        setHidden(hiddenProcessNames.union([processName]))
+        ports.removeAll { $0.processName == processName }
+    }
+
+    /// The rows come back on the next refresh.
+    func unhide(_ processName: String) { setHidden(hiddenProcessNames.subtracting([processName])) }
+
+    func unhideAll() { setHidden([]) }
+
+    private func setHidden(_ names: Set<String>) {
+        hiddenProcessNames = names
+        defaults.set(names.sorted(), forKey: Self.hiddenKey)
+        hasScannedOnce = false   // rows that return are not new services; don't notify for them
     }
 
     func service(for port: ListeningPort) -> ServiceInfo {
@@ -133,7 +156,7 @@ final class PortMonitor {
             async let early: [DockerContainer] = expectDocker ? DockerInspector.scan() : []
             async let system: [ListeningPort] = showSystemPorts ? scanSystemPorts() : []
             let own = try await scanPorts()
-            let scanned = Self.merge(own: own, system: await system)
+            let scanned = Self.merge(own: own, system: await system).filter { !hiddenProcessNames.contains($0.processName) }
             var containers = await early
             if !expectDocker, scanned.contains(where: { DockerInspector.isHostProcess($0.processName) }) {
                 containers = await DockerInspector.scan()

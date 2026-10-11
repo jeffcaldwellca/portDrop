@@ -30,6 +30,11 @@ enum ServiceClassifier {
             if name.contains("mysqld") || name.contains("mariadb") { return info(.mysql, "mysql") }
             if name.contains("redis") { return info(.redis, "redis") }
             if name.contains("mongod") { return info(.mongo, "mongodb") }
+            if name.contains("mssql") || name.contains("sqlservr") { return info(.mssql, nil) }
+            if name.contains("elasticsearch") || name.contains("opensearch") { return info(.elasticsearch, "http") }
+            if name.contains("memcached") { return info(.memcached, nil) }
+            if name.contains("rabbitmq") { return info(.rabbitmq, "amqp") }
+            if name.contains("kafka") { return info(.kafka, nil) }
             if name == "sshd" { return info(.ssh, "ssh", omitPortWhen: 22) }
             if name.contains("ftpd") { return info(.ftp, "ftp", omitPortWhen: 21) }
             return nil
@@ -47,6 +52,11 @@ enum ServiceClassifier {
         case 3306: return info(.mysql, "mysql")
         case 6379: return info(.redis, "redis")
         case 27017: return info(.mongo, "mongodb")
+        case 1433: return info(.mssql, nil)
+        case 9200: return info(.elasticsearch, "http")
+        case 11211: return info(.memcached, nil)
+        case 5672: return info(.rabbitmq, "amqp")
+        case 9092: return info(.kafka, nil)
         case 5900: return info(.vnc, "vnc", omitPortWhen: 5900)
         case 445: return info(.smb, "smb", omitPortWhen: 445)
         case 548: return info(.afp, "afp", omitPortWhen: 548)

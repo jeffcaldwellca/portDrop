@@ -13,4 +13,9 @@ struct ListeningPort: Identifiable, Hashable, Sendable {
     var ipVersions: Set<IPVersion>
 
     var id: String { "\(pid):\(port)" }
+
+    /// False when other devices on the network can reach the port (firewall permitting).
+    var isLoopbackOnly: Bool {
+        bindAddress == "localhost" || bindAddress == "::1" || bindAddress.hasPrefix("127.")
+    }
 }

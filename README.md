@@ -55,7 +55,8 @@ PortDrop keeps itself current with [Sparkle](https://sparkle-project.org): it ch
 - **Every listening TCP port**, live — polled with `lsof` every 2 s while the panel is open and every 10 s in the background.
 - **System ports on request.** `lsof` only sees your own processes, so listeners owned by root or other users are off by default; turn on ⚙︎ → **Show system ports** to add them (read from `netstat`).
 - **Real app icons** via `NSRunningApplication` / bundle lookup, with SF Symbol fallbacks for daemons and CLI tools.
-- **Service detection** by process name and well-known port (HTTP/S, SSH, FTP, PostgreSQL, MySQL, Redis, MongoDB, VNC, SMB, AFP…), plus a quick `HEAD` probe so unknown ports that speak HTTP get an `http://` link too.
+- **Which project is that?** Your own processes show the folder they were started in, so five `node` rows read as five projects. The tooltip has the full path and command line, and the right-click menu opens the folder.
+- **Service detection** by process name and well-known port (HTTP/S, SSH, FTP, PostgreSQL, MySQL, Redis, MongoDB, SQL Server, Elasticsearch, Memcached, RabbitMQ, Kafka, VNC, SMB, AFP…), plus a quick `HEAD` probe so unknown ports that speak HTTP get an `http://` link too.
 - **Open** (↗) launches the service URL in its default handler — `http://`, `ssh://`, `postgresql://`, and so on. When no installed app handles the scheme, the button copies the URL instead.
 - **Kill** (⊗), two steps so you never nuke the wrong thing:
   1. Click ⊗ → it becomes a red **Confirm** (reverts on its own after 3 s).
@@ -63,7 +64,10 @@ PortDrop keeps itself current with [Sparkle](https://sparkle-project.org): it ch
 
   If the process belongs to root or another user, PortDrop escalates to the standard macOS administrator-password dialog instead of failing silently. If the process is still alive a few seconds after the signal, the row says so rather than leaving you guessing.
 - **Docker-aware.** Ports published by Docker Desktop or OrbStack all belong to one backend process, so PortDrop asks `docker ps` which container is behind each one and shows the compose service (or container name) instead, with a Docker chip and the project name. The service's own port decides the protocol, so a container's Postgres on 5433 still gets a `postgresql://` link. The ⊗ button becomes a **Down** button: click, then Confirm, and PortDrop runs `docker compose down <service>` (containers without a compose project get `docker stop`; volumes are never removed). Right-click for **Down project**, which takes down every container in the project, or to kill the Docker backend itself.
-- **Search** by port, process, user, protocol, or Docker service/project/container name.
+- **Network exposure at a glance.** An orange signal mark beside the port number means the listener is not limited to loopback, so other devices on your network can reach it unless a firewall blocks it.
+- **Search** by port, process, folder, user, protocol, or Docker service/project/container name.
+- **Keyboard.** The search field has focus when the panel opens: **↑**/**↓** select a row, **⏎** opens it, **⌘⌫** arms Kill and a second **⌘⌫** confirms, **esc** clears.
+- **Hide the noise.** Right-click → **Hide** removes a process (say `rapportd`) from the list, the count, and notifications; bring it back from ⚙︎ → **Hidden Processes**.
 - **Right-click** a row for Open, Copy URL / PID / host:port, Reveal in Finder, Kill, and Force Kill (plus Down / Down project on Docker rows).
 - **Menu-bar badge**: the PortDrop mark plus the number of listening ports.
 - **Optional notification** when a new port starts listening.

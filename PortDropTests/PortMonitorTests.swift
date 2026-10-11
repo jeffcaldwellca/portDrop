@@ -136,4 +136,35 @@ final class PortMonitorTests: XCTestCase {
                        "db (Docker, shop) started listening")
         XCTAssertEqual(PortMonitor.notificationBody(for: p(1, 80), docker: nil), "x (PID 1) started listening")
     }
+
+    func named(_ pid: pid_t, _ port: UInt16, _ name: String) -> ListeningPort {
+        ListeningPort(pid: pid, processName: name, user: "u", port: port, bindAddress: "*", ipVersions: [.v4])
+    }
+
+    @MainActor func testHiddenProcessLeavesTheListAtOnceAndStaysOut() async {
+        let m = monitor(ports: [named(1, 5000, "ControlCenter"), named(1, 7000, "ControlCenter"), named(2, 3000, "node")])
+        await m.refresh()
+        XCTAssertEqual(m.ports.count, 3)
+
+        m.hide("ControlCenter")
+        XCTAssertEqual(m.ports.map(\.port), [3000], "no refresh needed")
+        await m.refresh()
+        XCTAssertEqual(m.ports.map(\.port), [3000])
+        XCTAssertEqual(m.hiddenProcessNames, ["ControlCenter"])
+
+        m.unhide("ControlCenter")
+        await m.refresh()
+        XCTAssertEqual(m.ports.count, 3)
+    }
+
+    @MainActor func testHiddenProcessesPersist() async {
+        let suite = "PortDropTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        PortMonitor(autoStart: false, defaults: defaults).hide("rapportd")
+        let m = PortMonitor(autoStart: false, defaults: defaults)
+        XCTAssertEqual(m.hiddenProcessNames, ["rapportd"])
+        m.unhideAll()
+        XCTAssertTrue(PortMonitor(autoStart: false, defaults: defaults).hiddenProcessNames.isEmpty)
+    }
 }

@@ -36,4 +36,17 @@ final class ServiceClassifierTests: XCTestCase {
         XCTAssertEqual(d(8081, 8081, service: "redis-commander").kind, .http)
     }
     func testNativeProcessNameStillBeatsPort() { XCTAssertEqual(c(8080, "redis-server").kind, .redis) }
+
+    func testElasticsearchOpensOverHTTP() { XCTAssertEqual(c(9200), ServiceInfo(kind: .elasticsearch, url: URL(string: "http://localhost:9200"))) }
+    func testRabbitMQ() { XCTAssertEqual(c(5672), ServiceInfo(kind: .rabbitmq, url: URL(string: "amqp://localhost:5672"))) }
+    func testBrokersAndCachesWithoutAURL() {
+        XCTAssertEqual(c(9092), ServiceInfo(kind: .kafka, url: nil))
+        XCTAssertEqual(c(11211), ServiceInfo(kind: .memcached, url: nil))
+        XCTAssertEqual(c(1433), ServiceInfo(kind: .mssql, url: nil))
+    }
+    func testNewKindsByName() {
+        XCTAssertEqual(c(40000, "memcached").kind, .memcached)
+        XCTAssertEqual(d(19092, 19092, service: "kafka").kind, .kafka)
+        XCTAssertEqual(d(1434, 1434, service: "mssql").kind, .mssql)
+    }
 }

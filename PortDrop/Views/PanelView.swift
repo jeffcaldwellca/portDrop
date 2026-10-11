@@ -5,6 +5,10 @@ struct PanelView: View {
     @State private var launchAtLogin = LaunchAtLogin.isEnabled
     @ObservedObject private var updater = Updater.shared
     @State private var listContentHeight: CGFloat = 0
+    @FocusState private var searchFocused: Bool
+    @State private var selectedID: String?
+    @State private var openRequest = 0
+    @State private var killRequest = 0
 
     static let width: CGFloat = 420
     static let maxListHeight: CGFloat = 480
@@ -19,6 +23,7 @@ struct PanelView: View {
         .onAppear {
             monitor.isPanelVisible = true
             NSApp.activate()   // MenuBarExtra windows don't become key otherwise, so TextField edits never commit
+            searchFocused = true
         }
         .onDisappear { monitor.isPanelVisible = false }
     }
@@ -52,6 +57,15 @@ struct PanelView: View {
                         get: { monitor.notifyOnNewPorts }, set: { monitor.notifyOnNewPorts = $0 }))
                     Toggle("Show system ports", isOn: $monitor.showSystemPorts)
                         .onChange(of: monitor.showSystemPorts) { Task { await monitor.refresh() } }
+                    if !monitor.hiddenProcessNames.isEmpty {
+                        Menu("Hidden Processes (\(monitor.hiddenProcessNames.count))") {
+                            ForEach(monitor.hiddenProcessNames.sorted(), id: \.self) { name in
+                                Button("Show \(name)") { monitor.unhide(name); Task { await monitor.refresh() } }
+                            }
+                            Divider()
+                            Button("Show All") { monitor.unhideAll(); Task { await monitor.refresh() } }
+                        }
+                    }
                     Divider()
                     Button("Check for Updates…") { updater.checkForUpdates() }
                         .disabled(!updater.canCheckForUpdates)
@@ -68,12 +82,43 @@ struct PanelView: View {
                 .menuIndicator(.hidden)
                 .fixedSize()
             }
-            TextField("Search port, process, user…", text: $monitor.searchText)
+            TextField("Search port, process, folder…", text: $monitor.searchText)
                 .textFieldStyle(.roundedBorder)
+                .focused($searchFocused)
+                .help("↑ ↓ to select a row, ⏎ to open it, ⌘⌫ twice to kill it, esc to clear")
+                .onChange(of: monitor.searchText) { selectedID = nil }
+                .onKeyPress(.downArrow) { moveSelection(by: 1); return .handled }
+                .onKeyPress(.upArrow) { moveSelection(by: -1); return .handled }
+                .onKeyPress(.return) {
+                    guard selectedID != nil else { return .ignored }
+                    openRequest += 1
+                    return .handled
+                }
+                .onKeyPress(.escape) {
+                    if selectedID != nil { selectedID = nil } else if !monitor.searchText.isEmpty { monitor.searchText = "" } else { return .ignored }
+                    return .handled
+                }
+                .onKeyPress(keys: [.delete]) { press in
+                    // Plain ⌘⌫ still edits the search text until a row has been picked with the arrows.
+                    guard press.modifiers.contains(.command), selectedID != nil else { return .ignored }
+                    killRequest += 1
+                    return .handled
+                }
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
         .padding(.bottom, 10)
+    }
+
+    private func moveSelection(by delta: Int) {
+        selectedID = Self.nextSelection(current: selectedID, by: delta, in: monitor.filteredPorts.map(\.id))
+    }
+
+    /// With nothing selected (or the selected row gone) ↓ starts at the top and ↑ at the bottom; otherwise the move clamps.
+    nonisolated static func nextSelection(current: String?, by delta: Int, in ids: [String]) -> String? {
+        guard !ids.isEmpty else { return nil }
+        guard let current, let i = ids.firstIndex(of: current) else { return delta > 0 ? ids.first : ids.last }
+        return ids[min(max(i + delta, 0), ids.count - 1)]
     }
 
     private func showAbout() {
@@ -104,6 +149,7 @@ struct PanelView: View {
             )
             .frame(height: 200)
         } else {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(spacing: 2) {
                     ForEach(monitor.filteredPorts) { port in
@@ -116,8 +162,13 @@ struct PanelView: View {
                             onKill: { force in try await monitor.kill(port, force: force) },
                             docker: docker,
                             onDocker: { action in try await monitor.perform(action) },
-                            projectContainerCount: docker?.container.project.map(monitor.projectContainerCount) ?? 0
+                            projectContainerCount: docker?.container.project.map(monitor.projectContainerCount) ?? 0,
+                            isSelected: selectedID == port.id,
+                            openRequest: openRequest,
+                            killRequest: killRequest,
+                            onHide: { monitor.hide(port.processName) }
                         )
+                        .id(port.id)
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                     }
                 }
@@ -126,6 +177,8 @@ struct PanelView: View {
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { listContentHeight = $0 }
             }
             .frame(height: min(max(listContentHeight, PortRowView.minRowHeight), Self.maxListHeight))
+            .onChange(of: selectedID) { _, id in if let id { proxy.scrollTo(id) } }
+            }
         }
     }
 }

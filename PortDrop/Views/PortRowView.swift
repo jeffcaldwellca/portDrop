@@ -11,6 +11,11 @@ struct PortRowView: View {
     var onDocker: (DockerAction) async throws -> Void = { _ in }
     /// Containers in the compose project behind `docker`, for the "Down project" menu label.
     var projectContainerCount: Int = 0
+    /// Keyboard selection from the panel; `openRequest` / `killRequest` tick when ⏎ / ⌘⌫ is pressed on it.
+    var isSelected = false
+    var openRequest = 0
+    var killRequest = 0
+    var onHide: (() -> Void)? = nil
 
     /// Wide enough for "65535" in bold monospaced body text.
     static let portColumnWidth: CGFloat = 52
@@ -58,6 +63,14 @@ struct PortRowView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
+            if !port.isLoopbackOnly {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .help("Not limited to this Mac: other devices on your network can reach this port unless a firewall blocks it")
+                    .accessibilityLabel("Reachable from the network")
+            }
+
             Text(String(port.port))
                 .font(.system(.body, design: .monospaced).weight(.bold))
                 .monospacedDigit()
@@ -67,10 +80,7 @@ struct PortRowView: View {
 
             HStack(spacing: 6) {
                 // Always laid out so the kill column lines up; invisible + inert when there is no URL.
-                Button {
-                    guard let url = service.url else { return }
-                    if canOpen { NSWorkspace.shared.open(url) } else { copy(url.absoluteString) }
-                } label: {
+                Button { openOrCopy() } label: {
                     Image(systemName: canOpen || service.url == nil ? "arrow.up.right.square" : "doc.on.doc")
                 }
                 .buttonStyle(.accessoryBar)
@@ -88,16 +98,41 @@ struct PortRowView: View {
         }
         .padding(.vertical, 8)
         .padding(.horizontal, 12)
-        .background(isHovering ? Color.primary.opacity(0.05) : .clear, in: RoundedRectangle(cornerRadius: 12))
+        .background(isSelected ? Color.accentColor.opacity(0.18) : (isHovering ? Color.primary.opacity(0.05) : .clear),
+                    in: RoundedRectangle(cornerRadius: 12))
         .onHover { isHovering = $0 }
+        .onChange(of: openRequest) { if isSelected { openOrCopy() } }
+        .onChange(of: killRequest) { if isSelected { advanceKill() } }
         .help(bindDescription)
         .contextMenu { contextMenu }
         .opacity(killState == .killing ? 0.4 : 1)
     }
 
     private var subtitle: String {
-        // The compose project is the useful context; the container name rarely fits and is in the tooltip.
-        docker?.container.project ?? "\(port.user) · PID \(port.pid)"
+        Self.subtitle(port: port, projectName: presentation.projectName, docker: docker, currentUser: NSUserName())
+    }
+
+    /// The compose project for a container (its name rarely fits and is in the tooltip). For your own
+    /// processes, the folder they run in — that is what tells five `node` rows apart — else the owner.
+    nonisolated static func subtitle(port: ListeningPort, projectName: String?, docker: DockerBinding?, currentUser: String) -> String {
+        if let docker { return docker.container.project ?? "\(port.user) · PID \(port.pid)" }
+        if let projectName, port.user == currentUser { return "\(projectName) · PID \(port.pid)" }
+        return "\(port.user) · PID \(port.pid)"
+    }
+
+    private func openOrCopy() {
+        guard let url = service.url else { return }
+        if canOpen { NSWorkspace.shared.open(url) } else { copy(url.absoluteString) }
+    }
+
+    /// ⌘⌫ walks the same two steps as the button: first press arms, second confirms.
+    private func advanceKill() {
+        switch killState {
+        case .idle, .failed: beginConfirm()
+        case .confirming:
+            if let docker { performDocker(DockerAction.primary(for: docker)) } else { performKill(force: false) }
+        case .killing: break
+        }
     }
 
     /// Whether any installed app handles the URL's scheme; `postgresql://` and friends need a client app.
@@ -115,6 +150,11 @@ struct PortRowView: View {
         let addr = port.bindAddress == "*" ? "all interfaces" : port.bindAddress
         let versions = port.ipVersions.contains(.v4) && port.ipVersions.contains(.v6) ? "IPv4 + IPv6" : (port.ipVersions.contains(.v6) ? "IPv6" : "IPv4")
         var text = "\(presentation.executablePath ?? port.processName)\nListening on \(addr) (\(versions))"
+        if docker == nil {
+            if let cwd = presentation.workingDirectory { text += "\nin \(cwd)" }
+            if let command = presentation.commandLine { text += "\n$ \(command)" }
+            text += "\n\(port.user) · PID \(port.pid)"
+        }
         if let docker {
             text += "\nContainer \(docker.container.name) (\(docker.container.id.prefix(12))), port \(docker.containerPort)"
             text += "\nvia \(port.processName) · PID \(port.pid)"
@@ -188,6 +228,14 @@ struct PortRowView: View {
         Button("Copy host:port") { copy("\(ServiceClassifier.host(for: port.bindAddress)):\(port.port)") }
         if let path = presentation.bundlePath ?? presentation.executablePath {
             Button("Reveal in Finder") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)]) }
+        }
+        if docker == nil, let cwd = presentation.workingDirectory, presentation.projectName != nil {
+            Button("Open Folder \(presentation.projectName ?? "")") { NSWorkspace.shared.open(URL(fileURLWithPath: cwd)) }
+            Button("Copy Folder Path") { copy(cwd) }
+        }
+        if docker == nil, let onHide {
+            Divider()
+            Button("Hide \(port.processName)") { onHide() }
         }
         Divider()
         if docker != nil {
