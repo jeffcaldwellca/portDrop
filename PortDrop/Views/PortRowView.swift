@@ -21,6 +21,13 @@ struct PortRowView: View {
     static let portColumnWidth: CGFloat = 52
     /// Wide enough for the idle icon; the Confirm pill may grow past this rather than clip.
     static let killColumnWidth: CGFloat = 28
+    /// Fixed frame for the action-button glyphs: SF Symbols differ in width (the Docker glyph is wider than
+    /// the kill one), and letting each button size to its glyph pushes the port column out of line.
+    static let actionGlyphWidth: CGFloat = 18
+    static let leadingColumnWidth: CGFloat = 28
+    /// App icons leave a transparent margin around their artwork; symbols barely have one,
+    /// so they are drawn smaller to match the visible size of an app icon in the same column.
+    static let leadingSymbolSize: CGFloat = 26
     /// Lower bound for the list frame before the first geometry pass reports.
     static let minRowHeight: CGFloat = 56
 
@@ -42,7 +49,8 @@ struct PortRowView: View {
                 }
             }
             .aspectRatio(contentMode: .fit)
-            .frame(width: 28, height: 28)
+            .frame(width: leadingIconSize, height: leadingIconSize)
+            .frame(width: Self.leadingColumnWidth, height: Self.leadingColumnWidth)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(docker?.displayName ?? presentation.displayName)
@@ -82,6 +90,7 @@ struct PortRowView: View {
                 // Always laid out so the kill column lines up; invisible + inert when there is no URL.
                 Button { openOrCopy() } label: {
                     Image(systemName: canOpen || service.url == nil ? "arrow.up.right.square" : "doc.on.doc")
+                        .frame(width: Self.actionGlyphWidth)
                 }
                 .buttonStyle(.accessoryBar)
                 .accessibilityLabel(canOpen ? "Open" : "Copy URL")
@@ -106,6 +115,11 @@ struct PortRowView: View {
         .help(bindDescription)
         .contextMenu { contextMenu }
         .opacity(killState == .killing ? 0.4 : 1)
+    }
+
+    /// SF Symbol images are templates; app icons are not.
+    private var leadingIconSize: CGFloat {
+        docker != nil || presentation.icon.isTemplate ? Self.leadingSymbolSize : Self.leadingColumnWidth
     }
 
     private var subtitle: String {
@@ -167,6 +181,7 @@ struct PortRowView: View {
         case .idle, .failed:
             Button { beginConfirm() } label: {
                 Image(systemName: "xmark.octagon")
+                    .frame(width: Self.actionGlyphWidth)
             }
             .buttonStyle(.accessoryBar)
             .accessibilityLabel("Kill")
@@ -191,6 +206,7 @@ struct PortRowView: View {
             case .idle, .failed:
                 Button { beginConfirm() } label: {
                     Image(systemName: "shippingbox.and.arrow.backward")
+                        .frame(width: Self.actionGlyphWidth)
                 }
                 .buttonStyle(.accessoryBar)
                 .accessibilityLabel("\(action.verb) \(docker.displayName)")
