@@ -67,7 +67,7 @@ PortDrop keeps itself current with [Sparkle](https://sparkle-project.org): it ch
 - **Network exposure at a glance.** An orange signal mark beside the port number means the listener is not limited to loopback, so other devices on your network can reach it unless a firewall blocks it.
 - **Search** by port, process, folder, user, protocol, or Docker service/project/container name.
 - **Keyboard.** The search field has focus when the panel opens: **↑**/**↓** select a row, **⏎** opens it, **⌘⌫** arms Kill and a second **⌘⌫** confirms, **esc** clears.
-- **Hide the noise.** Right-click → **Hide** removes a process (say `rapportd`) from the list, the count, and notifications; bring it back from ⚙︎ → **Hidden Processes**.
+- **Hide the noise.** macOS's own listeners (AirPlay's `ControlCenter` on :5000/:7000, Handoff's `rapportd`, and the like) stay out of the list, the count, and notifications; turn off ⚙︎ → **Hide macOS services** to see them, say to find out what is holding port 5000. Services you switch on yourself, such as Remote Login or Screen Sharing, always show. To hide anything else, right-click → **Hide**; bring it back from ⚙︎ → **Hidden Processes**.
 - **Right-click** a row for Open, Copy URL / PID / host:port, Reveal in Finder, Kill, and Force Kill (plus Down / Down project on Docker rows).
 - **Menu-bar badge**: the PortDrop mark plus the number of listening ports.
 - **Optional notification** when a new port starts listening, with **Open** and **Kill** buttons on the banner (Docker ports get Open only).

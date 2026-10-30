@@ -38,6 +38,23 @@ final class PortMonitor {
         }
     }
 
+    /// Leave out the macOS services in `macOSServiceNames`, wherever they were scanned from. On unless turned off.
+    var hideMacOSServices: Bool {
+        didSet {
+            guard hideMacOSServices != oldValue else { return }
+            defaults.set(hideMacOSServices, forKey: Self.macOSServicesKey)
+            hasScannedOnce = false   // the rows this brings back are not new services; don't notify for them
+        }
+    }
+
+    /// Apple's own listeners: AirPlay, Handoff/Continuity, Bonjour, printing and the like. Services the user
+    /// turns on deliberately (sshd, httpd, screen and file sharing) are left out so they stay visible. So is
+    /// launchd: it holds the listening socket for Remote Login, Screen Sharing and SMB until a client connects.
+    static let macOSServiceNames: Set<String> = [
+        "ControlCenter", "rapportd", "sharingd", "identityservicesd", "remoted", "remotepairingd",
+        "UniversalControl", "mDNSResponder", "cupsd", "netbiosd", "kdc", "WiFiAgent", "AirPlayXPCHelper",
+    ]
+
     /// Process names the user has hidden from the list (and so from the menu-bar count and notifications).
     private(set) var hiddenProcessNames: Set<String>
 
@@ -58,6 +75,7 @@ final class PortMonitor {
 
     private static let notifyKey = "notifyOnNewPorts"
     private static let systemKey = "showSystemPorts"
+    private static let macOSServicesKey = "hideMacOSServices"
     private static let hiddenKey = "hiddenProcessNames"
     private let defaults: UserDefaults
     private var hasScannedOnce = false
@@ -70,6 +88,7 @@ final class PortMonitor {
     init(autoStart: Bool = true, defaults: UserDefaults = .standard) {
         self.defaults = defaults
         showSystemPorts = defaults.bool(forKey: Self.systemKey)
+        hideMacOSServices = defaults.object(forKey: Self.macOSServicesKey) as? Bool ?? true
         hiddenProcessNames = Set(defaults.stringArray(forKey: Self.hiddenKey) ?? [])
         if autoStart {
             installNotificationActions()
@@ -125,6 +144,10 @@ final class PortMonitor {
                         || (b.container.service?.lowercased().contains(q) ?? false)
                     } ?? false)
         }
+    }
+
+    private func isHidden(_ processName: String) -> Bool {
+        hiddenProcessNames.contains(processName) || (hideMacOSServices && Self.macOSServiceNames.contains(processName))
     }
 
     func hide(_ processName: String) {
@@ -195,7 +218,7 @@ final class PortMonitor {
             async let early: [DockerContainer] = expectDocker ? DockerInspector.scan() : []
             async let system: [ListeningPort] = showSystemPorts ? scanSystemPorts() : []
             let own = try await scanPorts()
-            let scanned = Self.merge(own: own, system: await system).filter { !hiddenProcessNames.contains($0.processName) }
+            let scanned = Self.merge(own: own, system: await system).filter { !isHidden($0.processName) }
             var containers = await early
             if !expectDocker, scanned.contains(where: { DockerInspector.isHostProcess($0.processName) }) {
                 containers = await DockerInspector.scan()

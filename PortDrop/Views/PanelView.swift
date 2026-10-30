@@ -59,6 +59,8 @@ struct PanelView: View {
                         get: { monitor.notifyOnNewPorts }, set: { monitor.notifyOnNewPorts = $0 }))
                     Toggle("Show system ports", isOn: $monitor.showSystemPorts)
                         .onChange(of: monitor.showSystemPorts) { Task { await monitor.refresh() } }
+                    Toggle("Hide macOS services", isOn: $monitor.hideMacOSServices)
+                        .onChange(of: monitor.hideMacOSServices) { Task { await monitor.refresh() } }
                     if !monitor.hiddenProcessNames.isEmpty {
                         Menu("Hidden Processes (\(monitor.hiddenProcessNames.count))") {
                             ForEach(monitor.hiddenProcessNames.sorted(), id: \.self) { name in

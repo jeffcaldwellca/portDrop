@@ -143,17 +143,17 @@ final class PortMonitorTests: XCTestCase {
     }
 
     @MainActor func testHiddenProcessLeavesTheListAtOnceAndStaysOut() async {
-        let m = monitor(ports: [named(1, 5000, "ControlCenter"), named(1, 7000, "ControlCenter"), named(2, 3000, "node")])
+        let m = monitor(ports: [named(1, 5000, "ruby"), named(1, 7000, "ruby"), named(2, 3000, "node")])
         await m.refresh()
         XCTAssertEqual(m.ports.count, 3)
 
-        m.hide("ControlCenter")
+        m.hide("ruby")
         XCTAssertEqual(m.ports.map(\.port), [3000], "no refresh needed")
         await m.refresh()
         XCTAssertEqual(m.ports.map(\.port), [3000])
-        XCTAssertEqual(m.hiddenProcessNames, ["ControlCenter"])
+        XCTAssertEqual(m.hiddenProcessNames, ["ruby"])
 
-        m.unhide("ControlCenter")
+        m.unhide("ruby")
         await m.refresh()
         XCTAssertEqual(m.ports.count, 3)
     }
@@ -167,6 +167,39 @@ final class PortMonitorTests: XCTestCase {
         XCTAssertEqual(m.hiddenProcessNames, ["rapportd"])
         m.unhideAll()
         XCTAssertTrue(PortMonitor(autoStart: false, defaults: defaults).hiddenProcessNames.isEmpty)
+    }
+
+    @MainActor func testMacOSServicesAreHiddenByDefault() async {
+        let cups = ListeningPort(pid: 9, processName: "cupsd", user: "root", port: 631, bindAddress: "127.0.0.1", ipVersions: [.v4])
+        let remoteLogin = ListeningPort(pid: 1, processName: "launchd", user: "root", port: 22, bindAddress: "*", ipVersions: [.v4, .v6])
+        let m = monitor(ports: [named(2, 5000, "ControlCenter"), named(3, 53767, "rapportd"), named(4, 3000, "node")], system: [cups, remoteLogin])
+        m.showSystemPorts = true
+        XCTAssertTrue(m.hideMacOSServices)
+        await m.refresh()
+        XCTAssertEqual(m.ports.map(\.processName), ["launchd", "node"], "covers system listeners, but not launchd's sockets for sshd")
+
+        m.hideMacOSServices = false
+        await m.refresh()
+        XCTAssertEqual(m.ports.map(\.port), [22, 631, 3000, 5000, 53767])
+        XCTAssertTrue(m.hiddenProcessNames.isEmpty, "not part of the manual hide list")
+    }
+
+    @MainActor func testMacOSServicesSettingPersists() {
+        let suite = "PortDropTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: suite) }
+        PortMonitor(autoStart: false, defaults: defaults).hideMacOSServices = false
+        XCTAssertFalse(PortMonitor(autoStart: false, defaults: defaults).hideMacOSServices)
+    }
+
+    @MainActor func testShowingMacOSServicesDoesNotNotify() async {
+        let (m, scan, sent) = notifyingMonitor()
+        scan.value = [named(1, 5000, "ControlCenter")]
+        await m.refresh()
+        m.hideMacOSServices = false
+        await m.refresh()
+        XCTAssertEqual(m.ports.count, 1)
+        XCTAssertTrue(sent.value.isEmpty, "a service that was already running is not new")
     }
 
     // MARK: - Notification actions
