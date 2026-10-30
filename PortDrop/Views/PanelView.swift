@@ -40,9 +40,11 @@ struct PanelView: View {
                     .padding(.horizontal, 8).padding(.vertical, 3)
                     .glassEffect(.regular, in: Capsule())
                 Button { Task { await monitor.refresh() } } label: {
+                    // A symbol effect stops when isActive goes false; a repeatForever animation never does, and each
+                    // background scan stacked another one, so the (hidden) panel redrew every frame. MenuBarExtra keeps
+                    // the closed panel alive, so only spin while it's on screen.
                     Image(systemName: "arrow.clockwise")
-                        .rotationEffect(.degrees(monitor.isScanning ? 360 : 0))
-                        .animation(monitor.isScanning ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default, value: monitor.isScanning)
+                        .symbolEffect(.rotate, isActive: monitor.isScanning && monitor.isPanelVisible)
                 }
                 .buttonStyle(.accessoryBar)
                 .help("Refresh now")
