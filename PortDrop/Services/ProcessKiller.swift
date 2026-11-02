@@ -45,9 +45,10 @@ enum ProcessKiller {
             let err = Pipe()
             p.standardError = err
             p.standardOutput = Pipe()
+            let exited = p.exitSignal()
             do { try p.run() } catch { throw KillError.failed(error.localizedDescription) }
             let errText = String(decoding: err.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-            p.waitUntilExit()
+            for await _ in exited {}
             guard p.terminationStatus != 0 else { return }
             if errText.contains("-128") { throw KillError.cancelled }
             if errText.contains("No such process") { return }

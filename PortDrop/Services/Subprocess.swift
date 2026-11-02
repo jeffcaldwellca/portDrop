@@ -31,11 +31,14 @@ enum Subprocess {
             let out = Pipe(), err = Pipe()
             p.standardOutput = out
             p.standardError = err
+            let exited = p.exitSignal()
             do { try p.run() } catch { return nil }
             let timedOut = Flag()
             let pid = p.processIdentifier
-            let deadline = DispatchWorkItem {
-                guard p.isRunning else { return }
+            // Weak: the timer keeps this item until it fires even when cancelled, and holding `p` would hold
+            // its pipes' descriptors open that long.
+            let deadline = DispatchWorkItem { [weak p] in
+                guard let p, p.isRunning else { return }
                 timedOut.set()
                 p.terminate()
                 DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(2)) { if p.isRunning { kill(pid, SIGKILL) } }
@@ -44,12 +47,22 @@ enum Subprocess {
             let errTask = Task.detached { err.fileHandleForReading.readDataToEndOfFile() }
             let outData = out.fileHandleForReading.readDataToEndOfFile()
             let errData = await errTask.value
-            p.waitUntilExit()
+            for await _ in exited {}
             deadline.cancel()
             return Result(status: p.terminationStatus,
                           stdout: String(decoding: outData, as: UTF8.self),
                           stderr: String(decoding: errData, as: UTF8.self),
                           timedOut: timedOut.isSet)
         }.value
+    }
+}
+
+extension Process {
+    /// Finishes when the process exits; call before `run()`. Used instead of `waitUntilExit()`, which spins the
+    /// calling thread's run loop and, on a Swift-concurrency thread, can miss a fast child's exit and block forever.
+    func exitSignal() -> AsyncStream<Void> {
+        let (stream, continuation) = AsyncStream.makeStream(of: Void.self)
+        terminationHandler = { _ in continuation.finish() }
+        return stream
     }
 }
