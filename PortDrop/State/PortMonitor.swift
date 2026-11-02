@@ -67,7 +67,7 @@ final class PortMonitor {
     @ObservationIgnored var canOpenURL: (URL) -> Bool = { NSWorkspace.shared.urlForApplication(toOpen: $0) != nil }
     @ObservationIgnored var deliver: (UNNotificationRequest) -> Void = { UNUserNotificationCenter.current().add($0) }
     @ObservationIgnored var visibleInterval: Duration = .seconds(2)
-    @ObservationIgnored var hiddenInterval: Duration = .seconds(10)
+    @ObservationIgnored var hiddenInterval: Duration = .seconds(30)
 
     /// A listener that is still starting up may not answer the first probe, so a miss is retried on later
     /// scans; after this many the port is taken to be something other than HTTP and left alone.

@@ -52,7 +52,7 @@ PortDrop keeps itself current with [Sparkle](https://sparkle-project.org): it ch
 
 ## What you get
 
-- **Every listening TCP port**, live — polled with `lsof` every 2 s while the panel is open and every 10 s in the background.
+- **Every listening TCP port**, live — polled with `lsof` every 2 s while the panel is open and every 30 s in the background.
 - **System ports on request.** `lsof` only sees your own processes, so listeners owned by root or other users are off by default; turn on ⚙︎ → **Show system ports** to add them (read from `netstat`).
 - **Real app icons** via `NSRunningApplication` / bundle lookup, with SF Symbol fallbacks for daemons and CLI tools.
 - **Which project is that?** Your own processes show the folder they were started in, so five `node` rows read as five projects. The tooltip has the full path and command line, and the right-click menu opens the folder.

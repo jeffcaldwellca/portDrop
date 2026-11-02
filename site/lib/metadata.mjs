@@ -81,7 +81,7 @@ ${site.description}
 
 ## What it does
 
-- Lists every process listening on a local TCP port, live: \`lsof\` is polled every 2 seconds while the panel is open and every 10 seconds in the background.
+- Lists every process listening on a local TCP port, live: \`lsof\` is polled every 2 seconds while the panel is open and every 30 seconds in the background.
 - Shows the owning app's real icon, name, user, and PID next to the port number.
 - Detects HTTP, HTTPS, SSH, FTP, PostgreSQL, MySQL, Redis, MongoDB, VNC, SMB, and AFP by process name and well-known port, and probes unknown ports with an HTTP HEAD request so web servers get a clickable link.
 - Open launches the service URL in its default handler. Kill is two-step (click, then Confirm) and sends SIGTERM; holding Option sends SIGKILL. Killing another user's or root's process uses the standard macOS administrator dialog.
