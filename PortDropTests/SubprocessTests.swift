@@ -20,10 +20,11 @@ final class SubprocessTests: XCTestCase {
     /// `Process.waitUntilExit()` can miss a fast child's exit and park its thread forever, which froze the
     /// whole scan loop. Thousands of short-lived children, a few at a time like a scan, must all come back.
     /// The hang is rare, so this can pass by luck; `PORTDROP_SUBPROCESS_STRESS=<n>` runs more children.
-    func testManyShortLivedChildrenAllReturn() async {
+    /// It fails on a stall, not on slowness: CI runners launch processes far slower than a Mac does.
+    func testManyShortLivedChildrenAllReturn() async throws {
         let batches = (Int(ProcessInfo.processInfo.environment["PORTDROP_SUBPROCESS_STRESS"] ?? "") ?? 2000) / 4
-        let done = expectation(description: "every child came back")
-        // Unstructured, so a hung child cannot hold the test open: the expectation times out instead.
+        let progress = BatchProgress()
+        // Unstructured, so a hung child cannot hold the test open: the watchdog below gives up on it instead.
         Task.detached {
             for i in 0..<batches {
                 let results = await withTaskGroup(of: String?.self) { batch in
@@ -35,14 +36,32 @@ final class SubprocessTests: XCTestCase {
                     }
                     return await batch.compactMap { $0 }.reduce(into: []) { $0.append($1) }
                 }
-                if let failure = results.first {
-                    XCTFail("batch \(i): \(failure)")
-                    break
-                }
+                if let failure = results.first { progress.finish(failure: "batch \(i): \(failure)"); return }
+                progress.completedUnitCount = Int64(i + 1)
             }
-            done.fulfill()
+            progress.finish(failure: nil)
         }
-        await fulfillment(of: [done], timeout: Double(batches) * 0.01 + 5)   // ~0.3 ms a child when healthy
+        var seen: Int64 = -1, lastChange = ContinuousClock.now
+        while !progress.isFinished {
+            if progress.completedUnitCount != seen { seen = progress.completedUnitCount; lastChange = .now }
+            if ContinuousClock.now - lastChange > .seconds(15) {
+                return XCTFail("stalled after \(seen) of \(batches) batches: a child's exit was never seen")
+            }
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        if let failure = progress.failure { XCTFail(failure) }
+    }
+
+    private final class BatchProgress: @unchecked Sendable {
+        private let lock = NSLock()
+        private var count: Int64 = 0, done = false, message: String?
+        var completedUnitCount: Int64 {
+            get { lock.withLock { count } }
+            set { lock.withLock { count = newValue } }
+        }
+        var isFinished: Bool { lock.withLock { done } }
+        var failure: String? { lock.withLock { message } }
+        func finish(failure: String?) { lock.withLock { done = true; message = failure } }
     }
 
     func testMissingExecutableIsNil() async {
